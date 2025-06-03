@@ -1,5 +1,12 @@
 [versions]
 paper = "1.21.5-R0.1-SNAPSHOT"
+caffeine = "3.2.0"
+postegres = "42.7.6"
+hikari = "6.3.0"
+
 
 [libraries]
 paper-api = { module = "io.papermc.paper:paper-api", version.ref = "paper" }
+caffeine = { module = "com.github.ben-manes.caffeine:caffeine", version.ref = "caffeine" }
+postgres = { module = "org.postgresql:postgresql", version.ref = "postegres" }
+hikari = { module = "com.zaxxer:HikariCP", version.ref = "hikari" }
