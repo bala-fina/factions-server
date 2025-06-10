@@ -1,139 +1,95 @@
 package dev.balafini.factions.command;
 
 import dev.balafini.factions.model.Faction;
+import dev.balafini.factions.service.FactionInviteService;
 import dev.balafini.factions.service.FactionService;
-import io.papermc.paper.command.brigadier.BasicCommand;
-import io.papermc.paper.command.brigadier.CommandSourceStack;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.entity.Player;
-import org.jspecify.annotations.NullMarked;
+import org.incendo.cloud.annotation.specifier.Greedy;
+import org.incendo.cloud.annotations.Argument;
+import org.incendo.cloud.annotations.Command;
 
-import java.util.Collection;
-import java.util.List;
-import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 
-@NullMarked
-@SuppressWarnings("UnstableApiUsage")
-public class FactionCommand implements BasicCommand {
+@Command("faction|fac|f")
+public class FactionCommand {
 
     private final FactionService factionService;
+    private final FactionInviteService inviteService;
 
-    public FactionCommand(FactionService factionService) {
+    public FactionCommand(FactionService factionService, FactionInviteService inviteService) {
         this.factionService = factionService;
+        this.inviteService = inviteService;
     }
 
+    @Command("")
+    public void onDefault() {
+        // TODO: implement GUI
+    }
 
-    @Override
-    public void execute(CommandSourceStack commandSourceStack, String[] args) {
-        if (!(commandSourceStack instanceof Player player)) {
-            commandSourceStack.getSender().sendMessage(
-                    Component.text("Only players can use faction commands!", NamedTextColor.RED));
+    @Command("create <tag> <name>")
+    public void onCreate(Player sender,
+                         @Argument("tag") String tag,
+                         @Argument("name") @Greedy String name) {
+        factionService.createFaction(name, tag, sender.getUniqueId())
+                .thenAccept(faction -> sender.sendMessage(Component.text("Faction created successfully!", NamedTextColor.GREEN)))
+                .exceptionally(ex -> {
+                    Throwable cause = ex.getCause();
+                    String errorMessage = cause != null ? cause.getMessage() : ex.getMessage();
+                    sender.sendMessage(Component.text("Error: " + errorMessage, NamedTextColor.RED));
+                    return null;
+                });
+    }
+
+    @Command("disband")
+    public void onDisband(Player sender) {
+        factionService.disbandFaction(null, sender.getUniqueId())
+                .thenAccept(v -> sender.sendMessage(Component.text("Faction disbanded successfully!", NamedTextColor.GREEN)))
+                .exceptionally(ex -> {
+                    Throwable cause = ex.getCause();
+                    String errorMessage = cause != null ? cause.getMessage() : ex.getMessage();
+                    sender.sendMessage(Component.text("Error: " + errorMessage, NamedTextColor.RED));
+                    return null;
+                });
+    }
+
+    @Command("invite <player>")
+    public void onInvite(Player sender, @Argument("player") Player target) {
+        if (sender.equals(target)) {
+            sender.sendMessage(Component.text("You cannot invite yourself.", NamedTextColor.RED));
             return;
         }
 
-        if (args.length == 0) {
-            showHelp(player);
-            return;
-        }
+        factionService.getPlayerFaction(sender.getUniqueId())
+                .thenCompose(optFaction -> {
+                    if (optFaction.isEmpty()) {
+                        sender.sendMessage(Component.text("You are not in a faction.", NamedTextColor.RED));
+                        return CompletableFuture.completedFuture(null);
+                    }
 
-        String subcommand = args[0].toLowerCase();
+                    Faction faction = optFaction.get();
+                    return inviteService.createInvite(faction.id(), sender.getUniqueId(), target.getUniqueId())
+                            .thenAccept(invite -> {
+                                sender.sendMessage(Component.text("Invite sent to " + target.getName(), NamedTextColor.GREEN));
 
-        switch (subcommand) {
-            case "create" -> handleCreateFaction(player, args);
-            case "disband" -> handleDisband(player);
-            case "info" -> handleInfo(player, args);
-            default -> showHelp(player);
-        }
-    }
+                                Component inviteMessage = Component.text("You have been invited to join ", NamedTextColor.GOLD)
+                                        .append(Component.text(faction.name(), NamedTextColor.YELLOW))
+                                        .append(Component.text("!", NamedTextColor.GOLD))
+                                        .append(Component.newline())
+                                        .append(Component.text("Type ", NamedTextColor.GOLD))
+                                        .append(Component.text("/f accept " + invite.inviteId(), NamedTextColor.YELLOW))
+                                        .append(Component.text(" to accept.", NamedTextColor.GOLD));
 
-    @Override
-    public Collection<String> suggest(CommandSourceStack stack, String[] args) {
-        if (args.length == 1) {
-            return List.of("create", "disband", "info");
-        }
-        return List.of();
-    }
-
-    private void handleCreateFaction(Player player, String[] args) {
-        if (args.length < 3) {
-            player.sendMessage(Component.text("Usage: /f create <name> <tag>", NamedTextColor.RED));
-            return;
-        }
-
-        Optional<Faction> existingFaction = factionService.getPlayerFaction(player.getUniqueId());
-        if (existingFaction.isPresent()) {
-            player.sendMessage(Component.text("You are already in a faction!", NamedTextColor.RED));
-            return;
-        }
-
-        String name = args[1];
-        String tag = args[2];
-
-        try {
-            Faction faction = factionService.createFaction(name, tag, player.getUniqueId());
-            player.sendMessage(Component.text("Faction created: " + faction.name() + " (" + faction.tag() + ")", NamedTextColor.GREEN));
-        } catch (IllegalArgumentException e) {
-            player.sendMessage(Component.text(e.getMessage(), NamedTextColor.RED));
-        }
-    }
-
-    private void handleDisband(Player player) {
-        Optional<Faction> factionOpt = factionService.getPlayerFaction(player.getUniqueId());
-        if (factionOpt.isEmpty()) {
-            player.sendMessage(Component.text("You are not in a faction!", NamedTextColor.RED));
-            return;
-        }
-
-        try {
-            Faction faction = factionOpt.get();
-            factionService.disbandFaction(faction.id(), player.getUniqueId());
-            player.sendMessage(Component.text("Faction disbanded successfully!", NamedTextColor.GREEN));
-        } catch (IllegalArgumentException e) {
-            player.sendMessage(Component.text(e.getMessage(), NamedTextColor.RED));
-        }
-    }
-
-    private void handleInfo(Player player, String[] args) {
-        Faction faction;
-
-        if (args.length > 1) {
-            String query = args[1];
-            Optional<Faction> factionOpt = factionService.getFactionByName(query);
-
-            if (factionOpt.isEmpty()) {
-                factionOpt = factionService.getFactionByTag(query);
-            }
-
-            if (factionOpt.isEmpty()) {
-                player.sendMessage(Component.text("Faction not found!", NamedTextColor.RED));
-                return;
-            }
-            faction = factionOpt.get();
-        } else {
-            Optional<Faction> factionOpt = factionService.getPlayerFaction(player.getUniqueId());
-            if (factionOpt.isEmpty()) {
-                player.sendMessage(Component.text("You are not in a faction!", NamedTextColor.RED));
-                return;
-            }
-            faction = factionOpt.get();
-        }
-
-        player.sendMessage(Component.text("--- Faction Info ---", NamedTextColor.GREEN));
-        player.sendMessage(Component.text("Name: " + faction.name(), NamedTextColor.GREEN));
-        player.sendMessage(Component.text("Tag: [" + faction.tag() + "]", NamedTextColor.GREEN));
-        player.sendMessage(Component.text("Members (" + faction.members().size() + "):", NamedTextColor.GREEN));
-
-        faction.members().forEach(member -> {
-            String playerName = player.getServer().getOfflinePlayer(member.playerId()).getName();
-            player.sendMessage(Component.text("  " + member.role().getPrefix() + " " + playerName + " (" + member.role().getName() + ")", NamedTextColor.GREEN));
-        });
-    }
-
-    private void showHelp(Player player){
-        player.sendMessage(Component.text("/f create <name> <tag> - Create a new faction", NamedTextColor.WHITE));
-        player.sendMessage(Component.text("/f disband - Disband your faction", NamedTextColor.WHITE));
-        player.sendMessage(Component.text("/f info [name/tag] - Show faction information", NamedTextColor.WHITE));
+                                target.sendMessage(inviteMessage);
+                            });
+                })
+                .exceptionally(ex -> {
+                    Throwable cause = ex.getCause();
+                    String errorMessage = cause != null ? cause.getMessage() : ex.getMessage();
+                    sender.sendMessage(Component.text("Error: " + errorMessage, NamedTextColor.RED));
+                    return null;
+                });
     }
 }
 

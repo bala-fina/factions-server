@@ -29,13 +29,15 @@ public record FactionUser(
         public String getName() {
             return name;
         }
-
         public String getPrefix() {
             return prefix;
         }
-
         public int getLevel() {
             return level;
+        }
+
+        public boolean canManage(FactionRole target) {
+            return this.level < target.level;
         }
     }
 }
