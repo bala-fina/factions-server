@@ -1,3 +1,6 @@
 rootProject.name = "factions-server"
-include("plugins")
-include("plugins:factions")
+
+include(
+    "plugins:factions",
+    "common"
+)
