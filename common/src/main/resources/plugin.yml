@@ -1,0 +1,5 @@
+name: Common
+version: 1.0-SNAPSHOT
+main: dev.balafini.common.plugin.BasePlugin
+authors: ["Balafini"]
+api-version: 1.21.5
