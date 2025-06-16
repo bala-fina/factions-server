@@ -1,276 +1,176 @@
 package dev.balafini.factions.service;
 
 import dev.balafini.factions.cache.FactionCache;
-import dev.balafini.factions.model.Faction;
-import dev.balafini.factions.model.FactionUser;
-import dev.balafini.factions.repository.FactionRepository;
+import dev.balafini.factions.model.faction.Faction;
+import dev.balafini.factions.model.faction.FactionMember;
+import dev.balafini.factions.repository.faction.FactionMemberRepository;
+import dev.balafini.factions.repository.faction.FactionRepository;
 
-import java.time.Instant;
-import java.util.HashSet;
 import java.util.Optional;
-import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionStage;
+
+import static dev.balafini.factions.model.faction.Faction.FACTION_NAME_PATTERN;
+import static dev.balafini.factions.model.faction.Faction.FACTION_TAG_PATTERN;
 
 public class FactionService {
 
     private final FactionCache cache;
-    private final FactionRepository repository;
+    private final FactionRepository factionRepository;
+    private final FactionMemberRepository memberRepository;
+    private final int maxFactionSize;
 
-    public FactionService(FactionCache cache, FactionRepository repository) {
+    public FactionService(FactionCache cache, FactionRepository factionRepository, FactionMemberRepository memberRepository, int maxFactionSize) {
         this.cache = cache;
-        this.repository = repository;
+        this.factionRepository = factionRepository;
+        this.memberRepository = memberRepository;
+        this.maxFactionSize = maxFactionSize;
     }
 
-    public CompletableFuture<Faction> createFaction(String name, String tag, UUID leaderId) {
-        try {
-            validateFactionParameters(name, tag);
-        } catch (IllegalArgumentException e) {
-            return CompletableFuture.failedFuture(e);
-        }
+    public CompletionStage<Faction> createFaction(String name, String tag, UUID leaderId) {
+        validateFactionParameters(name, tag);
+        Faction newFaction = Faction.create(name, tag, leaderId);
 
-        return validateFactionCreation(name, tag, leaderId)
-                .thenCompose(valid -> {
-                    UUID factionId = UUID.randomUUID();
-                    FactionUser leader = new FactionUser(leaderId, factionId,
-                            FactionUser.FactionRole.LEADER, Instant.now());
-
-                    Faction faction = new Faction(factionId, name, tag,
-                            Instant.now(), Set.of(leader));
-
-                    cache.put(faction);
-                    return repository.save(faction).thenApply(v -> faction);
-                });
+        return validateFactionCreation(name, tag, leaderId).thenCompose(v -> {
+            CompletionStage<Void> saveFaction = factionRepository.save(newFaction);
+            CompletionStage<Void> saveLeader = memberRepository.save(newFaction.getLeader());
+            return CompletableFuture.allOf(saveFaction.toCompletableFuture(), saveLeader.toCompletableFuture())
+                    .thenApply(ignored -> {
+                        cache.put(newFaction);
+                        return newFaction;
+                    });
+        });
     }
 
-    public CompletableFuture<Optional<Faction>> getFactionById(UUID id) {
-        Optional<Faction> cached = cache.getById(id);
-        if (cached.isPresent()) {
-            return CompletableFuture.completedFuture(cached);
-        }
-
-        return repository.findById(id)
-                .thenApply(faction -> {
-                    faction.ifPresent(cache::put);
-                    return faction;
-                });
-    }
-
-    public CompletableFuture<Optional<Faction>> getFactionByName(String name) {
-        Optional<Faction> cached = cache.getByName(name);
-        if (cached.isPresent()) {
-            return CompletableFuture.completedFuture(cached);
-        }
-
-        return repository.findByName(name)
-                .thenApply(faction -> {
-                    faction.ifPresent(cache::put);
-                    return faction;
-                });
-    }
-
-    public CompletableFuture<Optional<Faction>> getFactionByTag(String tag) {
-        Optional<Faction> cached = cache.getByTag(tag);
-        if (cached.isPresent()) {
-            return CompletableFuture.completedFuture(cached);
-        }
-
-        return repository.findByTag(tag)
-                .thenApply(faction -> {
-                    faction.ifPresent(cache::put);
-                    return faction;
-                });
-    }
-
-    public CompletableFuture<Optional<Faction>> getPlayerFaction(UUID playerId) {
-        Optional<Faction> cached = cache.getByPlayer(playerId);
-        if (cached.isPresent()) {
-            return CompletableFuture.completedFuture(cached);
-        }
-
-        return repository.findByPlayer(playerId)
-                .thenApply(faction -> {
-                    faction.ifPresent(cache::put);
-                    return faction;
-                });
-    }
-
-    public CompletableFuture<Void> disbandFaction(UUID factionId, UUID leaderId) {
-        return getFactionById(factionId)
-                .thenCompose(optFaction -> {
-                    Faction faction = requireFaction(optFaction.orElse(null));
-
-                    if (!faction.getLeader().playerId().equals(leaderId)) {
-                        throw new IllegalArgumentException("Only leader can disband faction");
-                    }
-
-                    cache.remove(factionId);
-                    return repository.delete(factionId);
-                });
-    }
-
-    public CompletableFuture<Faction> addMember(UUID factionId, UUID playerId) {
-        return getFactionById(factionId)
-                .thenCompose(optFaction -> {
-                    Faction faction = requireFaction(optFaction.orElse(null));
-
-                    return getPlayerFaction(playerId)
-                            .thenApply(optPlayerFaction -> {
-                                if (optPlayerFaction.isPresent()) {
-                                    throw new IllegalArgumentException("Player already in faction");
-                                }
-
-                                FactionUser newMember = new FactionUser(playerId, factionId,
-                                        FactionUser.FactionRole.RECRUIT, Instant.now());
-
-                                Set<FactionUser> members = new HashSet<>(faction.members());
-                                members.add(newMember);
-
-                                Faction updated = new Faction(faction.id(), faction.name(),
-                                        faction.tag(), faction.createdAt(), members);
-
-                                cache.put(updated);
-                                return updated;
-                            })
-                            .thenCompose(updated -> repository.save(updated).thenApply(v -> updated));
-                });
-    }
-
-    public CompletableFuture<Faction> removeMember(UUID factionId, UUID requesterId, UUID targetId) {
-        return getFactionById(factionId)
-                .thenCompose(optFaction -> {
-                    Faction faction = requireFaction(optFaction.orElse(null));
-
-                    FactionUser requester = faction.getMember(requesterId);
-                    FactionUser target = faction.getMember(targetId);
-
-                    if (requester == null || target == null) {
-                        throw new IllegalArgumentException("Player not in faction");
-                    }
-
-                    validateRemoval(requester, target);
-
-                    Set<FactionUser> members = new HashSet<>(faction.members());
-                    members.remove(target);
-
-                    Faction updated = new Faction(faction.id(), faction.name(),
-                            faction.tag(), faction.createdAt(), members);
-
-                    cache.put(updated);
-                    return repository.save(updated).thenApply(v -> updated);
-                });
-    }
-
-    public CompletableFuture<Faction> promotePlayer(UUID factionId, UUID promoterId, UUID targetId) {
-        return changeRole(factionId, promoterId, targetId, true);
-    }
-
-    public CompletableFuture<Faction> demotePlayer(UUID factionId, UUID demoterId, UUID targetId) {
-        return changeRole(factionId, demoterId, targetId, false);
-    }
-
-    private CompletableFuture<Faction> changeRole(UUID factionId, UUID requesterId, UUID targetId, boolean promote) {
-        return getFactionById(factionId)
-                .thenCompose(optFaction -> {
-                    Faction faction = requireFaction(optFaction.orElse(null));
-
-                    FactionUser requester = faction.getMember(requesterId);
-                    FactionUser target = faction.getMember(targetId);
-
-                    if (requester == null || target == null) {
-                        throw new IllegalArgumentException("Player not in faction");
-                    }
-
-                    FactionUser.FactionRole newRole = promote ?
-                            getNextHigherRole(target.role()) : getNextLowerRole(target.role());
-
-                    if (newRole == null) {
-                        throw new IllegalArgumentException("Cannot " +
-                                                           (promote ? "promote" : "demote") + " further");
-                    }
-
-                    if (!canChangeRole(requester.role(), target.role(), newRole)) {
-                        throw new IllegalArgumentException("Insufficient permissions");
-                    }
-
-                    Set<FactionUser> members = new HashSet<>(faction.members());
-                    members.remove(target);
-                    members.add(new FactionUser(targetId, factionId, newRole, target.joinedAt()));
-
-                    Faction updated = new Faction(faction.id(), faction.name(),
-                            faction.tag(), faction.createdAt(), members);
-
-                    cache.put(updated);
-                    return repository.save(updated).thenApply(v -> updated);
-                });
-    }
-
-    private CompletableFuture<Boolean> validateFactionCreation(String name, String tag, UUID leaderId) {
-        CompletableFuture<Boolean> nameCheck = repository.existsByName(name);
-        CompletableFuture<Boolean> tagCheck = repository.existsByTag(tag);
-        CompletableFuture<Optional<Faction>> playerCheck = getPlayerFaction(leaderId);
-
-        return nameCheck.thenCombine(tagCheck, (nameExists, tagExists) -> {
-            if (nameExists) {
-                throw new IllegalArgumentException("Faction name already exists");
+    public CompletionStage<Void> disbandFaction(UUID factionId, UUID leaderId) {
+        return this.findFactionById(factionId).thenCompose(optFaction -> {
+            if (optFaction.isEmpty()) {
+                return CompletableFuture.failedFuture(new IllegalArgumentException("A facção não foi encontrada."));
             }
-            if (tagExists) {
-                throw new IllegalArgumentException("Faction tag already exists");
+            Faction faction = optFaction.get();
+            if (!faction.getLeader().playerId().equals(leaderId)) {
+                return CompletableFuture.failedFuture(new SecurityException("Apenas o líder da facção pode desbandar a facção."));
             }
-            return true;
-        }).thenCombine(playerCheck, (valid, playerFaction) -> {
-            if (playerFaction.isPresent()) {
-                throw new IllegalArgumentException("Player already in faction");
+
+            cache.invalidate(factionId);
+
+            CompletionStage<Boolean> deleteFaction = factionRepository.deleteByFactionId(factionId);
+            CompletionStage<Long> deleteMembers = memberRepository.deleteByFactionId(factionId);
+            return CompletableFuture.allOf(deleteFaction.toCompletableFuture(), deleteMembers.toCompletableFuture())
+                    .thenApply(ignored -> null);
+        });
+    }
+
+    public CompletionStage<Void> addMember(UUID factionId, UUID newMemberId) {
+        return this.findFactionById(factionId)
+                .thenCompose(optFaction -> {
+                    if (optFaction.isEmpty()) {
+                        return CompletableFuture.failedFuture(new IllegalArgumentException("A facção para a qual você foi convidado não existe mais."));
+                    }
+                    Faction faction = optFaction.get();
+
+                    if (faction.members().size() >= this.maxFactionSize) {
+                        return CompletableFuture.failedFuture(new IllegalStateException("Esta facção está cheia."));
+                    }
+
+                    return memberRepository.findByPlayerId(newMemberId).thenCompose(optMember -> {
+                        if (optMember.isPresent()) {
+                            return CompletableFuture.failedFuture(new IllegalStateException("O jogador já está em uma facção."));
+                        }
+
+                        FactionMember newMember = FactionMember.create(newMemberId, FactionMember.FactionRole.RECRUIT, factionId);
+                        cache.invalidate(factionId);
+                        return memberRepository.save(newMember);
+                    });
+                });
+    }
+
+
+    public CompletionStage<Void> removeMember(UUID factionId, UUID requesterId, UUID targetId) {
+        return this.findFactionById(factionId).thenCompose(optFaction -> {
+            if (optFaction.isEmpty()) {
+                return CompletableFuture.failedFuture(new IllegalArgumentException("Fação não encontrada."));
             }
-            return true;
+            if (requesterId.equals(targetId)) {
+                return CompletableFuture.failedFuture(new IllegalArgumentException("Você não pode remover a si mesmo da facção."));
+            }
+            Faction faction = optFaction.get();
+            FactionMember requester = faction.getMember(requesterId);
+            FactionMember target = faction.getMember(targetId);
+
+            if (requester == null || target == null) {
+                return CompletableFuture.failedFuture(new IllegalArgumentException("O jogador não é um membro da facção."));
+            }
+            if (target.role() == FactionMember.FactionRole.LEADER) {
+                return CompletableFuture.failedFuture(new IllegalArgumentException("O lider da facção não pode ser removido por outro membro."));
+            }
+            if (!requester.role().isHigherThan(target.role())) {
+                return CompletableFuture.failedFuture(new SecurityException("Você não tem permissão para remover este membro."));
+            }
+
+            cache.invalidate(factionId);
+            return memberRepository.deleteByPlayerId(targetId).thenApply(ignored -> null);
+        });
+    }
+
+    public CompletionStage<Optional<Faction>> findFactionById(UUID id) {
+        return cache.getById(id);
+    }
+
+    public CompletionStage<Optional<Faction>> findFactionByName(String name) {
+        return factionRepository.findByName(name)
+                .thenCompose(optFaction -> optFaction
+                        .map(faction -> findFactionById(faction.factionId()))
+                        .orElse(CompletableFuture.completedFuture(Optional.empty()))
+                );
+    }
+
+    public CompletionStage<Optional<Faction>> findFactionByTag(String tag) {
+        return factionRepository.findByTag(tag)
+                .thenCompose(optFaction -> optFaction
+                        .map(faction -> findFactionById(faction.factionId()))
+                        .orElse(CompletableFuture.completedFuture(Optional.empty()))
+                );
+    }
+
+    public CompletionStage<Optional<Faction>> findFactionByPlayer(UUID playerId) {
+        return memberRepository.findByPlayerId(playerId)
+                .thenCompose(optMember -> optMember
+                        .map(member -> findFactionById(member.factionId()))
+                        .orElse(CompletableFuture.completedFuture(Optional.empty()))
+                );
+    }
+
+    private CompletionStage<Void> validateFactionCreation(String name, String tag, UUID leaderId) {
+        CompletionStage<Boolean> nameCheck = factionRepository.existsByName(name);
+        CompletionStage<Boolean> tagCheck = factionRepository.existsByTag(tag);
+        CompletionStage<Boolean> playerCheck = memberRepository.findByPlayerId(leaderId).thenApply(Optional::isPresent);
+
+        return CompletableFuture.allOf(
+                nameCheck.toCompletableFuture(),
+                tagCheck.toCompletableFuture(),
+                playerCheck.toCompletableFuture()
+        ).thenAccept(ignored -> {
+            if (nameCheck.toCompletableFuture().join()) {
+                throw new IllegalArgumentException("O nome da facção já está em uso.");
+            }
+            if (tagCheck.toCompletableFuture().join()) {
+                throw new IllegalArgumentException("A tag da facção já está em uso.");
+            }
+            if (playerCheck.toCompletableFuture().join()) {
+                throw new IllegalArgumentException("O jogador já está em uma facção.");
+            }
         });
     }
 
     private void validateFactionParameters(String name, String tag) {
-        if (!name.matches(Faction.FACTION_NAME_PATTERN)) {
-            throw new IllegalArgumentException("Name must be 6-12 alphanumeric characters");
+        if (!name.matches(FACTION_NAME_PATTERN)) {
+            throw new IllegalArgumentException("O nome da facção deve conter entre 6 e 16 caracteres alfanuméricos.");
         }
-        if (!tag.matches(Faction.FACTION_TAG_PATTERN)) {
-            throw new IllegalArgumentException("Tag must be 3-4 alphanumeric characters");
-        }
-    }
-
-
-    private void validateRemoval(FactionUser requester, FactionUser target) {
-        if (target.role() == FactionUser.FactionRole.LEADER) {
-            throw new IllegalArgumentException("Cannot remove leader");
-        }
-        if (!requester.role().canManage(target.role())) {
-            throw new IllegalArgumentException("Insufficient permissions");
+        if (!tag.matches(FACTION_TAG_PATTERN)) {
+            throw new IllegalArgumentException("A tag da facção deve conter entre 3 e 4 caracteres alfanuméricos.");
         }
     }
 
-    private boolean canChangeRole(FactionUser.FactionRole requester,
-                                  FactionUser.FactionRole current,
-                                  FactionUser.FactionRole target) {
-        return requester.canManage(current) && requester.canManage(target);
-    }
-
-    private FactionUser.FactionRole getNextHigherRole(FactionUser.FactionRole role) {
-        return switch (role) {
-            case RECRUIT -> FactionUser.FactionRole.MEMBER;
-            case MEMBER -> FactionUser.FactionRole.OFFICER;
-            default -> null;
-        };
-    }
-
-    private FactionUser.FactionRole getNextLowerRole(FactionUser.FactionRole role) {
-        return switch (role) {
-            case OFFICER -> FactionUser.FactionRole.MEMBER;
-            case MEMBER -> FactionUser.FactionRole.RECRUIT;
-            default -> null;
-        };
-    }
-
-    private Faction requireFaction(Faction faction) {
-        if (faction == null) {
-            throw new IllegalArgumentException("Faction not found");
-        }
-        return faction;
-    }
 }

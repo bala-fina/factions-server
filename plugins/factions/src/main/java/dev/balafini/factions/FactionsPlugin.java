@@ -1,38 +1,47 @@
 package dev.balafini.factions;
 
-import com.mongodb.client.MongoClient;
-import com.mongodb.client.MongoDatabase;
-import dev.balafini.common.plugin.BasePlugin;
 import dev.balafini.factions.cache.FactionCache;
-import dev.balafini.factions.cache.FactionInviteCache;
 import dev.balafini.factions.command.FactionCommand;
-import dev.balafini.factions.database.MongoDBConfig;
-import dev.balafini.factions.database.MongoDBManager;
-import dev.balafini.factions.repository.FactionInviteRepository;
-import dev.balafini.factions.repository.FactionRepository;
+import dev.balafini.factions.database.MongoConfig;
+import dev.balafini.factions.database.MongoManager;
+import dev.balafini.factions.repository.faction.FactionInviteRepository;
+import dev.balafini.factions.repository.faction.FactionMemberRepository;
+import dev.balafini.factions.repository.faction.FactionRepository;
 import dev.balafini.factions.service.FactionInviteService;
 import dev.balafini.factions.service.FactionService;
-import org.bukkit.configuration.file.FileConfiguration;
+import org.bukkit.command.CommandSender;
+import org.bukkit.plugin.java.JavaPlugin;
+import org.incendo.cloud.SenderMapper;
+import org.incendo.cloud.annotations.AnnotationParser;
+import org.incendo.cloud.bukkit.CloudBukkitCapabilities;
+import org.incendo.cloud.execution.ExecutionCoordinator;
+import org.incendo.cloud.paper.LegacyPaperCommandManager;
 
-public class FactionsPlugin extends BasePlugin {
+import java.util.concurrent.Executors;
 
-    private MongoDBManager mongoDBManager;
+public class FactionsPlugin extends JavaPlugin {
+
+    private MongoManager mongoManager;
+
+    private FactionRepository factionRepository;
+    private FactionMemberRepository memberRepository;
+    private FactionInviteRepository inviteRepository;
 
     private FactionCache factionCache;
-    private FactionInviteCache inviteCache;
-    private FactionRepository factionRepository;
-    private FactionInviteRepository inviteRepository;
+
     private FactionService factionService;
     private FactionInviteService inviteService;
 
     @Override
     public void onEnable() {
-        super.onEnable();
-
         saveDefaultConfig();
+        int maxFactionSize = getConfig().getInt("factions.max-size", 15);
 
-        initializeMongo();
-        initializeServices();
+        this.setupDatabase();
+        this.setupRepositories();
+        this.setupCache();
+        this.setupServices(maxFactionSize);
+
         registerCommands();
         registerListeners();
 
@@ -41,67 +50,90 @@ public class FactionsPlugin extends BasePlugin {
 
     @Override
     public void onDisable() {
-        if (mongoDBManager != null) {
-            mongoDBManager.close();
+        if (this.mongoManager != null) {
+            this.mongoManager.close();
         }
-
-        getLogger().info("Faction plugin disabled!");
-
+        getLogger().info("Factions plugin disabled!");
     }
 
-    private void initializeMongo() {
-        try {
-            FileConfiguration config = getConfig();
-            MongoDBConfig mongoConfig = new MongoDBConfig(
-                    config.getString("mongodb.host"),
-                    config.getInt("mongodb.port"),
-                    config.getString("mongodb.database"),
-                    config.getString("mongodb.username"),
-                    config.getString("mongodb.password"),
-                    config.getBoolean("mongodb.auth-enabled"),
-                    config.getBoolean("mongodb.is-atlas")
-            );
+    private void setupDatabase() {
+        MongoConfig mongoConfig = new MongoConfig(
+                getConfig().getString("mongodb.host"),
+                getConfig().getInt("mongodb.port"),
+                getConfig().getString("mongodb.database"),
+                getConfig().getString("mongodb.username"),
+                getConfig().getString("mongodb.password"),
+                getConfig().getBoolean("mongodb.useAuthentication")
+        );
 
-            mongoDBManager = new MongoDBManager(mongoConfig);
-            getLogger().info("Connected to MongoDB database successfully!");
-        } catch (Exception e) {
-            getLogger().severe("Failed to initialize MongoDB: " + e.getMessage());
-            getServer().getPluginManager().disablePlugin(this);
-        }
+        this.mongoManager = new MongoManager(mongoConfig);
     }
 
-    private void initializeServices() {
-        factionCache = new FactionCache();
-        inviteCache = new FactionInviteCache();
-
-        factionRepository = new FactionRepository(mongoDBManager);
-        inviteRepository = new FactionInviteRepository(mongoDBManager);
-
-        factionService = new FactionService(factionCache, factionRepository);
-        inviteService = new FactionInviteService(inviteCache, inviteRepository, factionService);
+    private void setupRepositories() {
+        this.factionRepository = new FactionRepository(this.mongoManager);
+        this.memberRepository = new FactionMemberRepository(this.mongoManager);
+        this.inviteRepository = new FactionInviteRepository(this.mongoManager);
     }
+
+    private void setupCache() {
+        this.factionCache = new FactionCache(
+                this.factionRepository,
+                this.memberRepository,
+                this.mongoManager.getExecutor()
+        );
+    }
+
+    private void setupServices(int maxFactionSize) {
+        this.factionService = new FactionService(
+                this.factionCache,
+                this.factionRepository,
+                this.memberRepository,
+                maxFactionSize
+        );
+        this.inviteService = new FactionInviteService(
+                this.inviteRepository,
+                this.factionRepository,
+                this.factionService
+        );
+    }
+
 
     private void registerCommands() {
-        parseCommands(FactionCommand.class);
+        LegacyPaperCommandManager<CommandSender> commandManager = new LegacyPaperCommandManager<>(
+                this,
+                ExecutionCoordinator.coordinatorFor(Executors.newVirtualThreadPerTaskExecutor()),
+                SenderMapper.identity()
+        );
+
+        if (commandManager.hasCapability(CloudBukkitCapabilities.NATIVE_BRIGADIER)) {
+            commandManager.registerBrigadier();
+        } else if (commandManager.hasCapability(CloudBukkitCapabilities.ASYNCHRONOUS_COMPLETION)) {
+            commandManager.registerAsynchronousCompletions();
+        }
+
+        AnnotationParser<CommandSender> annotationParser = new AnnotationParser<>(
+                commandManager,
+                CommandSender.class
+        );
+
+        annotationParser.parse(new FactionCommand(
+                this,
+                factionService,
+                inviteService,
+                this.mongoManager.getExecutor(),
+                this.getConfig().getInt("factions.max-size", 15)));
     }
+
 
     private void registerListeners() {
 
     }
 
+    public FactionService getFactionService() {
+        return factionService;
+    }
+
     public FactionCache getFactionCache() {
         return factionCache;
-    }
-
-    public FactionInviteCache getInviteCache() {
-        return inviteCache;
-    }
-
-    public FactionRepository getFactionRepository() {
-        return factionRepository;
-    }
-
-    public FactionInviteRepository getInviteRepository() {
-        return inviteRepository;
     }
 }

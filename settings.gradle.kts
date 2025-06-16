@@ -2,5 +2,9 @@ rootProject.name = "factions-server"
 
 include(
     "plugins:factions",
-    "common"
+    "plugins:factions-core",
 )
+
+
+
+include("plugins:factions-data")

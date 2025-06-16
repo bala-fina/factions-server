@@ -4,5 +4,7 @@ mongodb:
   database: "factions"
   username: "totoadmin"
   password: "T33mPpyEF05powAv"
-  auth-enabled: true
-  is-atlas: true
+  useAuthentication: true
+
+factions:
+  max-size: 15

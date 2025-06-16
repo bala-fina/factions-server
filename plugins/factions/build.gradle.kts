@@ -6,9 +6,8 @@ plugins {
 dependencies {
     compileOnly(libs.paper.api)
 
-    compileOnly(project(":common"))
     implementation(libs.caffeine)
-    implementation(libs.mongodb.driver.sync)
+    implementation(libs.bundles.mongoEcosystem)
     implementation(libs.bundles.cloudEcosystem)
 }
 
