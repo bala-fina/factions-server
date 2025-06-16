@@ -16,7 +16,9 @@ import org.bukkit.entity.Player;
 import org.incendo.cloud.annotation.specifier.Greedy;
 import org.incendo.cloud.annotations.Argument;
 import org.incendo.cloud.annotations.Command;
+import org.incendo.cloud.annotations.Commands;
 
+import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.time.format.FormatStyle;
@@ -43,95 +45,64 @@ public class FactionCommand {
     }
 
     @Command("")
-    public void onDefault(CommandSender sender) {
-        if (!(sender instanceof Player player)) {
-            sender.sendMessage(Component.text("Esse comando só pode ser usado por jogadores.", NamedTextColor.RED));
-            return;
-        }
-
+    public void onDefault(Player player) {
         factionService.findFactionByPlayer(player.getUniqueId()).thenAccept(optFaction -> {
-            if (optFaction.isEmpty()) {
-                // TODO: implement GUI
+            if (optFaction.isPresent()) {
+                displayFactionInfo(player, optFaction.get());
+            } else {
                 player.sendMessage(Component.text("Você não está em uma facção. Use /f create <tag> <nome> para criar uma.", NamedTextColor.RED));
-                return;
             }
-
-            displayFactionInfo(player, optFaction.get());
-
-        }).exceptionally(ex -> handleException(sender, ex));
-
+        }).exceptionally(ex -> handleException(player, ex));
     }
 
     @Command("create|criar <tag> <name>")
-    public void onCreate(CommandSender sender, @Argument("tag") String tag, @Argument("name") @Greedy String name) {
-        if (!(sender instanceof Player player)) {
-            sender.sendMessage(Component.text("Esse comando só pode ser usado por jogadores.", NamedTextColor.RED));
-            return;
-        }
-
+    public void onCreate(Player player, @Argument("tag") String tag, @Argument("name") @Greedy String name) {
         factionService.createFaction(name, tag, player.getUniqueId())
-                .thenAccept(faction -> {
-                    player.sendMessage(Component.text("Facção '", NamedTextColor.GREEN)
-                            .append(Component.text(faction.name(), NamedTextColor.AQUA))
-                            .append(Component.text("' criada com sucesso!")));
-                    player.playSound(player.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, 1, 1);
-                })
+                .thenAccept(faction -> player.sendMessage(Component.text("Facção '", NamedTextColor.GREEN)
+                        .append(Component.text(faction.name(), NamedTextColor.AQUA))
+                        .append(Component.text("' criada com sucesso!"))))
                 .exceptionally(ex -> handleException(player, ex));
     }
 
     @Command("disband")
-    public void onDisband(CommandSender sender) {
-        if (!(sender instanceof Player player)) {
-            sender.sendMessage(Component.text("Esse comando só pode ser usado por jogadores.", NamedTextColor.RED));
-            return;
-        }
-
+    public void onDisband(Player player) {
         factionService.findFactionByPlayer(player.getUniqueId()).thenCompose(optFaction -> {
             if (optFaction.isEmpty()) {
-                player.sendMessage(Component.text("Você não está em uma facção. Use /f create <tag> <nome> para criar uma.", NamedTextColor.RED));
+                player.sendMessage(Component.text("Você não está em uma facção.", NamedTextColor.RED));
                 return CompletableFuture.completedFuture(null);
             }
             return factionService.disbandFaction(optFaction.get().factionId(), player.getUniqueId())
-                    .thenAccept(v -> player.sendMessage(Component.text("A facção foi desbandada com sucesso!", NamedTextColor.GREEN)));
+                    .thenAccept(v -> player.sendMessage(Component.text("Facção desbandada com sucesso!", NamedTextColor.GREEN)));
         }).exceptionally(ex -> handleException(player, ex));
-
-
     }
 
     @Command("invite|invitar|convidar <player>")
-    public void onInvite(CommandSender sender, @Argument("player") Player target) {
-        if (!(sender instanceof Player player)) {
-            sender.sendMessage(Component.text("Esse comando só pode ser usado por jogadores.", NamedTextColor.RED));
+    public void onInvite(Player player, @Argument("player") Player target) {
+        if (player.equals(target)) {
+            player.sendMessage(Component.text("Você não pode convidar a si mesmo.", NamedTextColor.RED));
             return;
         }
 
         factionService.findFactionByPlayer(player.getUniqueId()).thenCompose(optFaction -> {
             if (optFaction.isEmpty()) {
-                player.sendMessage(Component.text("Voce não está em uma facção. Use /f create <tag> <nome> para criar uma.", NamedTextColor.RED));
-                return CompletableFuture.completedFuture(null);
+                return CompletableFuture.failedFuture(new IllegalStateException("Você precisa estar em uma facção para convidar jogadores."));
             }
             Faction faction = optFaction.get();
-            return inviteService.createInvite(faction.tag(), player.getUniqueId(), target.getUniqueId())
-                    .thenAccept(invite -> {
-                        player.sendMessage(Component.text("Convite enviado para " + target.getName(), NamedTextColor.GREEN));
-                        target.sendMessage(Component.text("Você foi convidado para a entrar na facção '" + faction.name() + "'.", NamedTextColor.GOLD));
-                        target.sendMessage(Component.text("Digite ", NamedTextColor.GRAY)
-                                .append(Component.text("/f aceitar" + faction.tag(), NamedTextColor.YELLOW))
-                                .append(Component.text(" para entrar.", NamedTextColor.GRAY)));
-                        target.playSound(target.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, 1, 1);
-                    });
+            return inviteService.createInvite(faction.tag(), player.getUniqueId(), target.getUniqueId());
+        }).thenAccept(invite -> {
+            player.sendMessage(Component.text("Convite enviado para " + target.getName(), NamedTextColor.GREEN));
+            target.sendMessage(Component.text("Você foi convidado para a facção '" + invite.factionTag() + "'.", NamedTextColor.GOLD));
+            target.sendMessage(Component.text("Digite ", NamedTextColor.GRAY)
+                    .append(Component.text("/f accept " + invite.factionTag(), NamedTextColor.YELLOW))
+                    .append(Component.text(" para aceitar.", NamedTextColor.GRAY)));
         }).exceptionally(ex -> handleException(player, ex));
     }
 
     @Command("accept|aceitar|join <tag>")
-    public void onAccept(Player player, @Argument("tag") String factionTag) {
+    public void onAccept(Player player, @Argument(value = "tag") String factionTag) {
         inviteService.acceptInvite(player.getUniqueId(), factionTag)
-                .thenAccept(faction -> {
-                    player.sendMessage(Component.text("Você entrou na facção: ", NamedTextColor.GREEN)
-                            .append(Component.text(faction.name(), NamedTextColor.AQUA)));
-                    player.playSound(player.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, 1, 1);
-                    // TODO: sent to faction chat message
-                })
+                .thenAccept(faction -> player.sendMessage(Component.text("Você entrou na facção: ", NamedTextColor.GREEN)
+                        .append(Component.text(faction.name(), NamedTextColor.AQUA))))
                 .exceptionally(ex -> handleException(player, ex));
     }
 
@@ -143,26 +114,54 @@ public class FactionCommand {
     }
 
     @Command("info|ver <tag>")
-    public void onInfo(CommandSender sender, @Argument("tag") String factionTag) {
+    public void onInfo(CommandSender sender, @Argument(value = "tag") String factionTag) {
+        if (factionTag == null) {
+            if (sender instanceof Player player) {
+                onDefault(player); // If no tag, show player's own faction
+            } else {
+                sender.sendMessage(Component.text("Por favor, especifique a tag de uma facção.", NamedTextColor.RED));
+            }
+            return;
+        }
+
         factionService.findFactionByTag(factionTag).thenAccept(optFaction -> {
             if (optFaction.isPresent()) {
                 displayFactionInfo(sender, optFaction.get());
             } else {
-                sender.sendMessage(Component.text("Facção '" + factionTag + "' não encontrada.", NamedTextColor.RED));
+                sender.sendMessage(Component.text("Facção com a tag '" + factionTag + "' não encontrada.", NamedTextColor.RED));
             }
         }).exceptionally(ex -> handleException(sender, ex));
     }
 
+    @Command("leave")
+    public void onLeave(Player player) {
+        factionService.removeMember(null, player.getUniqueId(), player.getUniqueId())
+                .thenAccept(v -> player.sendMessage(Component.text("Você saiu da sua facção.", NamedTextColor.GREEN)))
+                .exceptionally(ex -> handleException(player, ex));
+    }
+
+    @Command("kick <player>")
+    public void onKick(Player player, @Argument("player") Player target) {
+        factionService.findFactionByPlayer(player.getUniqueId()).thenCompose(optFaction -> {
+            if (optFaction.isEmpty()) {
+                return CompletableFuture.failedFuture(new IllegalStateException("Você não está em uma facção."));
+            }
+            return factionService.removeMember(optFaction.get().factionId(), player.getUniqueId(), target.getUniqueId());
+        }).thenAccept(v -> {
+            player.sendMessage(Component.text(target.getName() + " foi expulso da facção.", NamedTextColor.GREEN));
+            target.sendMessage(Component.text("Você foi expulso da sua facção.", NamedTextColor.RED));
+        }).exceptionally(ex -> handleException(player, ex));
+    }
+
     private record FactionDisplayData(
             Component header, Component leader, Component membersCount,
-            Component onlineHeader, Component onlineMembers,
-            Component offlineHeader, Component offlineMembers,
+            List<Component> onlineMembers, List<Component> offlineMembers,
             Component createdAt
-    ) {
-    }
+    ) {}
 
     private void displayFactionInfo(CommandSender sender, Faction faction) {
         CompletableFuture.supplyAsync(() -> {
+                    // --- BACKGROUND THREAD: Safe to make blocking calls ---
                     List<Player> onlinePlayers = new ArrayList<>();
                     List<UUID> offlinePlayerIds = new ArrayList<>();
                     for (var member : faction.members()) {
@@ -174,54 +173,37 @@ public class FactionCommand {
                         }
                     }
 
-                    String leaderName = Optional.ofNullable(Bukkit.getOfflinePlayer(faction.getLeader().playerId()).getName())
-                            .orElse("Desconhecido");
-
+                    String leaderName = resolvePlayerName(faction.getLeader().playerId());
                     List<Component> offlineMemberComponents = offlinePlayerIds.stream()
-                            .map(uuid -> {
-                                String memberName = Optional.ofNullable(Bukkit.getOfflinePlayer(uuid).getName())
-                                        .orElse("Desconhecido"); // Fallback for each member
-                                return Component.text("•" + memberName, NamedTextColor.RED);
-                            })
+                            .map(uuid -> Component.text("•" + resolvePlayerName(uuid), NamedTextColor.RED))
+                            .collect(Collectors.toList());
+                    List<Component> onlineMemberComponents = onlinePlayers.stream()
+                            .map(p -> Component.text("•" + p.getName(), NamedTextColor.GREEN))
                             .collect(Collectors.toList());
 
+                    // --- PREPARE ALL COMPONENTS ---
                     Component header = Component.text("Informações da facção - [", NamedTextColor.GREEN)
                             .append(Component.text(faction.tag(), NamedTextColor.WHITE))
-                            .append(Component.text("] " + faction.name() + ":", NamedTextColor.GREEN));
-
+                            .append(Component.text("] " + faction.name(), NamedTextColor.GREEN));
                     Component leaderComponent = Component.text("Líder: ", NamedTextColor.WHITE).append(Component.text(leaderName));
                     Component membersCountComponent = Component.text("Membros: ", NamedTextColor.WHITE).append(Component.text(faction.members().size() + "/" + maxFactionSize));
+                    Component createdAtComponent = Component.text("Criada em: ", NamedTextColor.WHITE).append(Component.text(formatDate(faction.createdAt())));
 
-                    Component onlineHeaderComponent = Component.text("Membros online: " + onlinePlayers.size(), NamedTextColor.WHITE);
-                    Component onlineMembersComponent = Component.join(
-                            JoinConfiguration.separator(Component.text(", ", NamedTextColor.GRAY)),
-                            onlinePlayers.stream().map(p -> Component.text("•" + p.getName(), NamedTextColor.GREEN)).collect(Collectors.toList())
-                    );
-
-                    Component offlineHeaderComponent = Component.text("Membros offline: " + offlinePlayerIds.size(), NamedTextColor.WHITE);
-                    Component offlineMembersComponent = Component.join(
-                            JoinConfiguration.separator(Component.text(", ", NamedTextColor.GRAY)),
-                            offlineMemberComponents
-                    );
-
-                    DateTimeFormatter formatter = DateTimeFormatter.ofLocalizedDateTime(FormatStyle.MEDIUM)
-                            .withLocale(Locale.of("pt", "BR"))
-                            .withZone(ZoneId.systemDefault());
-                    Component createdAtComponent = Component.text("Criada em: ", NamedTextColor.WHITE).append(Component.text(formatter.format(faction.createdAt())));
-
-                    return new FactionDisplayData(header, leaderComponent, membersCountComponent, onlineHeaderComponent, onlineMembersComponent, offlineHeaderComponent, offlineMembersComponent, createdAtComponent);
+                    return new FactionDisplayData(header, leaderComponent, membersCountComponent, onlineMemberComponents, offlineMemberComponents, createdAtComponent);
 
                 }, executor).thenAcceptAsync(data -> {
+                    // --- MAIN SERVER THREAD: Safe to send messages ---
                     sender.sendMessage(data.header());
                     sender.sendMessage(data.leader());
                     sender.sendMessage(data.membersCount());
-                    if (!data.onlineMembers().children().isEmpty()) {
-                        sender.sendMessage(data.onlineHeader());
-                        sender.sendMessage(data.onlineMembers());
+
+                    if (!data.onlineMembers().isEmpty()) {
+                        sender.sendMessage(Component.text("Membros online (" + data.onlineMembers().size() + "):", NamedTextColor.WHITE));
+                        sender.sendMessage(Component.join(JoinConfiguration.separator(Component.text(", ", NamedTextColor.GRAY)), data.onlineMembers()));
                     }
-                    if (!data.offlineMembers().children().isEmpty()) {
-                        sender.sendMessage(data.offlineHeader());
-                        sender.sendMessage(data.offlineMembers());
+                    if (!data.offlineMembers().isEmpty()) {
+                        sender.sendMessage(Component.text("Membros offline (" + data.offlineMembers().size() + "):", NamedTextColor.WHITE));
+                        sender.sendMessage(Component.join(JoinConfiguration.separator(Component.text(", ", NamedTextColor.GRAY)), data.offlineMembers()));
                     }
                     sender.sendMessage(data.createdAt());
 
@@ -229,10 +211,31 @@ public class FactionCommand {
                 .exceptionally(ex -> handleException(sender, ex));
     }
 
+    private String resolvePlayerName(UUID uuid) {
+        try {
+            return Optional.ofNullable(Bukkit.getOfflinePlayer(uuid).getName()).orElse("[Desconhecido]");
+        } catch (Exception e) {
+            return "[Erro ao carregar]";
+        }
+    }
+
+    private String formatDate(Instant instant) {
+        DateTimeFormatter formatter = DateTimeFormatter.ofLocalizedDateTime(FormatStyle.MEDIUM)
+                .withLocale(Locale.of("pt", "BR"))
+                .withZone(ZoneId.of("America/Sao_Paulo"));
+        return formatter.format(instant);
+    }
 
     private Void handleException(CommandSender sender, Throwable ex) {
         Throwable cause = ex.getCause() != null ? ex.getCause() : ex;
-        sender.sendMessage(Component.text("Error: " + cause.getMessage(), NamedTextColor.RED));
+        sender.sendMessage(Component.text("Erro: " + cause.getMessage(), NamedTextColor.RED));
+        // For server administrators, log the full error to the console
+        if (!(ex instanceof IllegalStateException || ex instanceof IllegalArgumentException)) {
+            plugin.getLogger().severe("An error occurred executing a faction command: " + cause);
+            for (StackTraceElement element : cause.getStackTrace()) {
+                plugin.getLogger().severe("    at " + element.toString());
+            }
+        }
         return null;
     }
 }
