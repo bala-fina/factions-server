@@ -1,5 +1,7 @@
 package dev.balafini.factions.repository.faction;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.mongodb.client.MongoDatabase;
 import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.IndexOptions;
 import com.mongodb.client.model.Indexes;
@@ -20,11 +22,13 @@ public class FactionInviteRepository {
     private final JacksonMongoCollection<FactionInvite> collection;
     private final ExecutorService executor;
 
-
     public FactionInviteRepository(MongoManager mongoManager) {
+        MongoDatabase database = mongoManager.getDatabase();
+        ObjectMapper objectMapper = mongoManager.getObjectMapper();
         this.executor = mongoManager.getExecutor();
         this.collection = JacksonMongoCollection.builder()
-                .build(mongoManager.getDatabase(), "faction_invites", FactionInvite.class, UuidRepresentation.STANDARD);
+                .withObjectMapper(objectMapper)
+                .build(database, "faction_invites", FactionInvite.class, UuidRepresentation.STANDARD);
 
         createIndexes();
     }

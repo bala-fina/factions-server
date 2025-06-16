@@ -1,5 +1,6 @@
 package dev.balafini.factions.repository.faction;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mongodb.client.MongoDatabase;
 import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.IndexOptions;
@@ -23,8 +24,10 @@ public class FactionMemberRepository {
 
     public FactionMemberRepository(MongoManager mongoManager) {
         MongoDatabase database = mongoManager.getDatabase();
+        ObjectMapper objectMapper = mongoManager.getObjectMapper();
         this.executor = mongoManager.getExecutor();
         this.collection = JacksonMongoCollection.builder()
+                .withObjectMapper(objectMapper)
                 .build(database, "faction_members", FactionMember.class, UuidRepresentation.STANDARD);
 
         createIndexes();

@@ -1,5 +1,6 @@
 package dev.balafini.factions.model.faction;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import org.mongojack.Id;
 import org.mongojack.ObjectId;

@@ -1,5 +1,9 @@
 package dev.balafini.factions.database;
 
+import com.fasterxml.jackson.databind.DeserializationFeature;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.mongodb.ConnectionString;
 import com.mongodb.MongoClientSettings;
 import com.mongodb.client.MongoClient;
@@ -13,6 +17,7 @@ import dev.balafini.factions.model.faction.FactionMember;
 import org.bson.UuidRepresentation;
 import org.mongojack.JacksonMongoCollection;
 
+import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -24,6 +29,7 @@ public class MongoManager implements AutoCloseable {
     private final MongoClient mongoClient;
     private final MongoDatabase database;
     private final ExecutorService executorService;
+    private final ObjectMapper objectMapper; // <-- NEW FIELD
 
     public MongoManager(MongoConfig config) {
         MongoClientSettings settings = MongoClientSettings.builder()
@@ -40,6 +46,16 @@ public class MongoManager implements AutoCloseable {
         this.mongoClient = MongoClients.create(settings);
         this.database = mongoClient.getDatabase("factionsdev");
         this.executorService = Executors.newVirtualThreadPerTaskExecutor();
+        this.objectMapper = createConfiguredObjectMapper();
+    }
+
+    private static ObjectMapper createConfiguredObjectMapper() {
+        ObjectMapper objectMapper = new ObjectMapper();
+        objectMapper.registerModule(new JavaTimeModule());
+        objectMapper.configure(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS, false);
+        objectMapper.disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES);
+
+        return objectMapper;
     }
 
     public MongoDatabase getDatabase() {
@@ -48,6 +64,10 @@ public class MongoManager implements AutoCloseable {
 
     public ExecutorService getExecutor() {
         return executorService;
+    }
+
+    public ObjectMapper getObjectMapper() {
+        return objectMapper;
     }
 
 

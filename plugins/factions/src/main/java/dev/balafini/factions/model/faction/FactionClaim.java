@@ -1,5 +1,6 @@
 package dev.balafini.factions.model.faction;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import org.mongojack.Id;
 import org.mongojack.ObjectId;
@@ -10,23 +11,11 @@ public record FactionClaim(
         @Id
         @ObjectId
         String id,
-
-        @JsonProperty("worldName")
         String worldName,
-
-        @JsonProperty("chunkX")
         int chunkX,
-
-        @JsonProperty("chunkZ")
         int chunkZ,
-
-        @JsonProperty("claimType")
         ClaimType claimType,
-
-        @JsonProperty("factionTag")
         String factionTag,
-
-        @JsonProperty("claimedAt")
         Instant claimedAt
 ) {
     public enum ClaimType {

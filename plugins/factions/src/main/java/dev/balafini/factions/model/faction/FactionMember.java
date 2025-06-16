@@ -1,9 +1,15 @@
 package dev.balafini.factions.model.faction;
 
+import org.mongojack.Id;
+import org.mongojack.ObjectId;
+
 import java.time.Instant;
 import java.util.UUID;
 
 public record FactionMember(
+        @Id
+        @ObjectId
+        String id,
         UUID playerId,
         UUID factionId,
         FactionRole role,
@@ -40,10 +46,10 @@ public record FactionMember(
     }
 
     public static FactionMember create(UUID playerId, FactionRole role, UUID factionId) {
-        return new FactionMember(playerId, factionId, role, Instant.now());
+        return new FactionMember(null, playerId, factionId, role, Instant.now());
     }
 
     public FactionMember withRole(FactionRole newRole) {
-        return new FactionMember(this.playerId, this.factionId, newRole, this.joinedAt);
+        return new FactionMember(this.id, this.playerId, this.factionId, newRole, this.joinedAt);
     }
 }

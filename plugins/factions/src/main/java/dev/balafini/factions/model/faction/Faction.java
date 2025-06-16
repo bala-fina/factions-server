@@ -12,7 +12,8 @@ public record Faction(
         String name,
         String tag,
         Instant createdAt,
-        Set<FactionMember> members
+
+        @JsonIgnore Set<FactionMember> members
 ) {
 
     public static final String FACTION_NAME_PATTERN = "^[a-zA-Z0-9]{6,16}$";
@@ -48,6 +49,7 @@ public record Faction(
                 .orElseThrow(() -> new IllegalStateException("A facção deve deve ter um líder!"));
     }
 
+    @JsonIgnore
     public FactionMember getMember(UUID playerId) {
         return members.stream()
                 .filter(member -> member.playerId().equals(playerId))
