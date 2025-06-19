@@ -43,7 +43,7 @@ public class FactionInviteService {
 
                     return factionRepository.findByTag(factionTag).thenCompose(optFaction -> {
                         if (optFaction.isEmpty()) {
-                            return CompletableFuture.failedFuture(new IllegalStateException("A facção que voce está tentando entrar não existe!"));
+                            return CompletableFuture.failedFuture(new IllegalStateException("A facção que você está tentando entrar não existe!"));
                         }
                         Faction faction = optFaction.get();
 
@@ -55,9 +55,11 @@ public class FactionInviteService {
 
     public CompletionStage<Void> denyInvite(UUID inviteeId, String factionTag) {
         return inviteRepository.findByInviteeAndTag(inviteeId, factionTag)
-                .thenCompose(optInvite -> {
-                    return optInvite.<CompletionStage<Void>>map(factionInvite -> inviteRepository.deleteById(factionInvite.id()).thenApply(v -> null)).orElseGet(() -> CompletableFuture.failedFuture(new IllegalArgumentException("Você não tem um convite para essa facção!")));
-                });
+                .thenCompose(optInvite -> optInvite
+                        .map(invite -> inviteRepository.deleteById(invite.id()).thenAccept(__ -> {}))
+                        .orElseGet(() -> CompletableFuture.failedFuture(
+                                new IllegalArgumentException("Você não tem um convite para essa facção!")))
+                );
     }
 }
 
