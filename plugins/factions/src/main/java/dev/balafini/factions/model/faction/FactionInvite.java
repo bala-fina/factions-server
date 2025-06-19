@@ -9,10 +9,7 @@ import java.time.Instant;
 import java.util.UUID;
 
 public record FactionInvite(
-        @Id
-        @ObjectId
-        String id,
-
+        @Id @ObjectId @JsonProperty("_id") String id,
         String factionTag,
         UUID inviterId,
         UUID inviteeId,

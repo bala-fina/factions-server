@@ -1,5 +1,6 @@
 package dev.balafini.factions.model.faction;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import org.mongojack.Id;
 import org.mongojack.ObjectId;
 
@@ -7,9 +8,7 @@ import java.time.Instant;
 import java.util.UUID;
 
 public record FactionMember(
-        @Id
-        @ObjectId
-        String id,
+        @Id @ObjectId @JsonProperty("_id") String id,
         UUID playerId,
         UUID factionId,
         FactionRole role,
