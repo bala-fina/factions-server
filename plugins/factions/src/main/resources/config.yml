@@ -7,4 +7,13 @@ mongodb:
   useAuthentication: true
 
 factions:
-  max-size: 15
+  max-size: 20
+
+player:
+  power:
+    initial-power: 5
+    initial-max-power: 5
+    server-max: 8
+    lost-on-death: 1
+    regen-amount: 1
+    regen-interval-minutes: 30
