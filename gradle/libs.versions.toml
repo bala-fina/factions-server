@@ -6,6 +6,7 @@ mongo-jack = "5.0.2"
 cloud-paper = "2.0.0-beta.10"
 cloud-annotation = "2.0.0"
 jedis = "6.0.0"
+fastboard = "2.1.5"
 
 
 [libraries]
@@ -16,6 +17,7 @@ mongo-jack = { module = "org.mongojack:mongojack", version.ref = "mongo-jack" }
 cloud-paper = { module = "org.incendo:cloud-paper", version.ref = "cloud-paper" }
 cloud-annotation = { module = "org.incendo:cloud-annotations", version.ref = "cloud-annotation" }
 jedis = { module = "redis.clients:jedis", version.ref = "jedis" }
+fastboard = { module = "fr.mrmicky:fastboard", version.ref = "fastboard" }
 
 [plugins]
 shadow = { id = "com.gradleup.shadow", version = "8.3.0" }

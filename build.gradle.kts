@@ -18,6 +18,7 @@ subprojects {
     plugins.withType<JavaPlugin> {
         tasks.withType<JavaCompile>().configureEach {
             options.encoding = "UTF-8"
+            options.compilerArgs.add("--enable-preview")
         }
         java {
             toolchain.languageVersion.set(JavaLanguageVersion.of(21))

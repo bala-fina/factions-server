@@ -7,33 +7,26 @@ dependencies {
     compileOnly(libs.paper.api)
 
     implementation(libs.caffeine)
+    implementation(libs.fastboard)
     implementation(libs.bundles.mongoEcosystem)
     implementation(libs.bundles.cloudEcosystem)
 }
 
 tasks {
     shadowJar {
-        archiveClassifier.set("")
+        archiveFileName.set("Factions.jar")
 
-        // --- THE FIX IS HERE ---
-        // Relocate Jackson to prevent conflicts with the server's built-in version.
-        // This is the direct solution to the NoSuchFieldError.
+        relocate("fr.mrmicky.fastboard", "dev.balafini.libs.fastboard")
         relocate("com.fasterxml.jackson", "dev.balafini.libs.jackson")
-
-        // It's also best practice to relocate MongoJack itself.
         relocate("org.mongojack", "dev.balafini.libs.mongojack")
-
-        // Your existing relocations are also correct.
         relocate("org.incendo.cloud", "dev.balafini.libs.cloud")
         relocate("com.github.benmanes.caffeine", "dev.balafini.libs.caffeine")
         relocate("com.mongodb", "dev.balafini.libs.mongodb")
+
+        minimize()
     }
 
     build {
         dependsOn(shadowJar)
-    }
-
-    jar {
-        archiveClassifier.set("original")
     }
 }
