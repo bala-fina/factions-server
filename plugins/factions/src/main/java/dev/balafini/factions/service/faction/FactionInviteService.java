@@ -1,4 +1,4 @@
-package dev.balafini.factions.service;
+package dev.balafini.factions.service.faction;
 
 import dev.balafini.factions.model.faction.Faction;
 import dev.balafini.factions.model.faction.FactionInvite;
@@ -48,7 +48,7 @@ public class FactionInviteService {
                         Faction faction = optFaction.get();
 
                         return factionService.addMember(faction.factionId(), inviteeId)
-                                .thenCompose(v -> inviteRepository.deleteByInviteeId(inviteeId).thenApply(deletedCount -> faction));
+                                .thenCompose(_ -> inviteRepository.deleteByInviteeId(inviteeId).thenApply(deletedCount -> faction));
                     });
                 });
     }
@@ -56,7 +56,8 @@ public class FactionInviteService {
     public CompletionStage<Void> denyInvite(UUID inviteeId, String factionTag) {
         return inviteRepository.findByInviteeAndTag(inviteeId, factionTag)
                 .thenCompose(optInvite -> optInvite
-                        .map(invite -> inviteRepository.deleteById(invite.id()).thenAccept(__ -> {}))
+                        .map(invite -> inviteRepository.deleteById(invite.id()).thenAccept(_ -> {
+                        }))
                         .orElseGet(() -> CompletableFuture.failedFuture(
                                 new IllegalArgumentException("Você não tem um convite para essa facção!")))
                 );

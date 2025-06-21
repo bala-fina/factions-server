@@ -1,6 +1,7 @@
 package dev.balafini.factions.repository.faction;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.mongodb.client.FindIterable;
 import com.mongodb.client.MongoDatabase;
 import com.mongodb.client.model.*;
 import dev.balafini.factions.database.MongoManager;
@@ -8,6 +9,8 @@ import dev.balafini.factions.model.faction.Faction;
 import org.bson.UuidRepresentation;
 import org.mongojack.JacksonMongoCollection;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -40,6 +43,7 @@ public class FactionRepository {
         );
         collection.createIndex(Indexes.ascending("name"), caseInsensitiveUnique);
         collection.createIndex(Indexes.ascending("tag"), caseInsensitiveUnique);
+        collection.createIndex(Indexes.descending("kdr"));
     }
 
     public CompletionStage<Optional<Faction>> findById(UUID factionId) {
@@ -94,6 +98,39 @@ public class FactionRepository {
                 () -> collection.deleteOne(Filters.eq("_id", factionId)).getDeletedCount() > 0,
                 executor
         );
+    }
+
+    public CompletionStage<Void> updatePower(UUID factionId, double powerDelta, double maxPowerDelta) {
+        return CompletableFuture.runAsync(() -> collection.updateOne(
+                Filters.eq("_id", factionId),
+                Updates.combine(
+                        Updates.inc("power", powerDelta),
+                        Updates.inc("maxPower", maxPowerDelta)
+                )
+        ), executor);
+    }
+
+    public CompletionStage<Void> updateKdr(UUID factionId, double kdrDelta) {
+        return CompletableFuture.runAsync(() -> collection.updateOne(
+                Filters.eq("_id", factionId),
+                Updates.inc("kdr", kdrDelta)
+        ), executor);
+    }
+
+    public CompletionStage<Long> countFactionsWithHigherKdr(double kdr) {
+        return CompletableFuture.supplyAsync(
+                () -> collection.countDocuments(Filters.gt("kdr", kdr)),
+                executor
+        );
+    }
+
+    public CompletionStage<List<Faction>> getTopKdrFactions(int limit) {
+        return CompletableFuture.supplyAsync(() -> {
+            FindIterable<Faction> findIterable = collection.find()
+                    .sort(Sorts.descending("kdr"))
+                    .limit(limit);
+            return findIterable.into(new ArrayList<>());
+        }, executor);
     }
 }
 

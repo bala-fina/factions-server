@@ -12,6 +12,9 @@ public record Faction(
         String name,
         String tag,
         Instant createdAt,
+        double power,
+        double maxPower,
+        double kdr,
 
         @JsonIgnore Set<FactionMember> members
 ) {
@@ -19,7 +22,7 @@ public record Faction(
     public static final String FACTION_NAME_PATTERN = "^[a-zA-Z0-9]{6,16}$";
     public static final String FACTION_TAG_PATTERN = "^[a-zA-Z0-9]{3,4}$";
 
-    public static Faction create(String name, String tag, UUID leaderId) {
+    public static Faction create(String name, String tag, UUID leaderId, double leaderPower, double leaderMaxPower, double leaderKdr) {
         UUID factionId = UUID.randomUUID();
         FactionMember leader = FactionMember.create(leaderId, FactionMember.FactionRole.LEADER, factionId);
         return new Faction(
@@ -27,6 +30,9 @@ public record Faction(
                 name,
                 tag,
                 Instant.now(),
+                leaderPower,
+                leaderMaxPower,
+                leaderKdr,
                 Set.of(leader)
         );
     }
@@ -37,6 +43,9 @@ public record Faction(
                 this.name,
                 this.tag,
                 this.createdAt,
+                this.power,
+                this.maxPower,
+                this.kdr,
                 members
         );
     }

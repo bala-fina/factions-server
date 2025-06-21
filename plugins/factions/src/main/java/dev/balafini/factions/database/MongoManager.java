@@ -1,5 +1,6 @@
 package dev.balafini.factions.database;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
@@ -47,7 +48,8 @@ public class MongoManager implements AutoCloseable {
                 .registerModule(new JavaTimeModule())
                 .registerModule(new MongoJackModule())
                 .configure(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS, false)
-                .disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES);
+                .disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
+                .setSerializationInclusion(JsonInclude.Include.NON_NULL);
     }
 
     public MongoDatabase getDatabase() {

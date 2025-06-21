@@ -1,16 +1,12 @@
 package dev.balafini.factions.model.faction;
 
-import com.fasterxml.jackson.annotation.JsonFormat;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import org.mongojack.Id;
 import org.mongojack.ObjectId;
 
 import java.time.Instant;
 
 public record FactionClaim(
-        @Id
-        @ObjectId
-        String id,
+        @Id @ObjectId String id,
         String worldName,
         int chunkX,
         int chunkZ,
