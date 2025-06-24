@@ -2,6 +2,7 @@ package dev.balafini.factions.service.faction;
 
 import dev.balafini.factions.cache.FactionCache;
 import dev.balafini.factions.config.ConfigManager;
+import dev.balafini.factions.exception.*;
 import dev.balafini.factions.model.faction.Faction;
 import dev.balafini.factions.model.faction.FactionMember;
 import dev.balafini.factions.model.user.User;
@@ -35,7 +36,11 @@ public class FactionService {
     }
 
     public CompletionStage<Faction> createFaction(String name, String tag, UUID leaderId) {
-        validateFactionParameters(name, tag);
+        try {
+            validateFactionParameters(name, tag);
+        } catch (InvalidFactionParametersException e) {
+            return CompletableFuture.failedFuture(e);
+        }
 
         return validateFactionCreation(name, tag, leaderId).thenCompose(_ ->
                 userService.createUser(leaderId).thenCompose(leaderUser -> {
@@ -56,11 +61,11 @@ public class FactionService {
     public CompletionStage<Void> disbandFaction(UUID factionId, UUID leaderId) {
         return this.findFactionById(factionId).thenCompose(optFaction -> {
             if (optFaction.isEmpty()) {
-                return CompletableFuture.failedFuture(new IllegalArgumentException("A facção não foi encontrada."));
+                return CompletableFuture.failedFuture(new FactionNotFoundException("A facção não foi encontrada." ));
             }
             Faction faction = optFaction.get();
             if (!faction.getLeader().playerId().equals(leaderId)) {
-                return CompletableFuture.failedFuture(new SecurityException("Apenas o líder da facção pode excluir a facção."));
+                return CompletableFuture.failedFuture(new InsufficientPermissionException("Apenas o líder da facção pode excluir a facção." ));
             }
 
             cache.invalidate(factionId);
@@ -76,16 +81,16 @@ public class FactionService {
         return userService.createUser(newMemberId).thenCompose(user ->
                 this.findFactionById(factionId).thenCompose(optFaction -> {
                     if (optFaction.isEmpty()) {
-                        return CompletableFuture.failedFuture(new IllegalArgumentException("Facção não existe."));
+                        return CompletableFuture.failedFuture(new FactionNotFoundException("A facção não foi encontrada." ));
                     }
                     Faction faction = optFaction.get();
                     if (faction.members().size() >= config.maxFactionSize()) {
-                        return CompletableFuture.failedFuture(new IllegalStateException("Esta facção está cheia."));
+                        return CompletableFuture.failedFuture(new FactionFullException("Esta facção está cheia." ));
                     }
 
                     return memberRepository.findByPlayerId(newMemberId).thenCompose(optMember -> {
                         if (optMember.isPresent()) {
-                            return CompletableFuture.failedFuture(new IllegalStateException("O jogador já está em uma facção."));
+                            return CompletableFuture.failedFuture(new PlayerAlreadyInFactionException("O jogador já está em uma facção." ));
                         }
 
                         return factionRepository.updatePower(factionId, user.power(), user.maxPower())
@@ -104,7 +109,7 @@ public class FactionService {
         if (factionId == null) {
             return memberRepository.findByPlayerId(targetId).thenCompose(optMember -> {
                 if (optMember.isEmpty()) {
-                    return CompletableFuture.failedFuture(new IllegalStateException("Você não está em uma facção."));
+                    return CompletableFuture.failedFuture(new PlayerNotInFactionException("Você não está em uma facção." ));
                 }
                 return removeMember(optMember.get().factionId(), requesterId, targetId);
             });
@@ -112,13 +117,13 @@ public class FactionService {
 
         return userService.findUser(targetId).thenCompose(optUserToRemove -> {
             if (optUserToRemove.isEmpty()) {
-                return CompletableFuture.failedFuture(new IllegalStateException("Dados do jogador a ser removido não encontrados."));
+                return CompletableFuture.failedFuture(new PlayerNotInFactionException("Dados do jogador a ser removido não encontrados." ));
             }
             User userToRemove = optUserToRemove.get();
 
             return this.findFactionById(factionId).thenCompose(optFaction -> {
                 if (optFaction.isEmpty()) {
-                    return CompletableFuture.failedFuture(new IllegalArgumentException("Facção não encontrada."));
+                    return CompletableFuture.failedFuture(new FactionNotFoundException("Facção não encontrada." ));
                 }
                 Faction faction = optFaction.get();
 
@@ -126,19 +131,19 @@ public class FactionService {
                 FactionMember target = faction.getMember(targetId);
 
                 if (target == null) {
-                    return CompletableFuture.failedFuture(new IllegalArgumentException("O jogador não é um membro desta facção."));
+                    return CompletableFuture.failedFuture(new PlayerNotInFactionException("O jogador não é um membro desta facção." ));
                 }
 
                 if (target.role() == FactionMember.FactionRole.LEADER) {
-                    return CompletableFuture.failedFuture(new SecurityException("O líder da facção não pode ser expulso."));
+                    return CompletableFuture.failedFuture(new InsufficientPermissionException("O líder da facção não pode ser expulso." ));
                 }
 
                 if (!requesterId.equals(targetId)) {
                     if (requester == null) {
-                        return CompletableFuture.failedFuture(new IllegalArgumentException("Você não é um membro desta facção."));
+                        return CompletableFuture.failedFuture(new PlayerNotInFactionException("Você não é um membro desta facção." ));
                     }
                     if (!requester.role().isHigherThan(target.role())) {
-                        return CompletableFuture.failedFuture(new SecurityException("Você não tem permissão para expulsar este membro."));
+                        return CompletableFuture.failedFuture(new InsufficientPermissionException("Você não tem permissão para expulsar este membro." ));
                     }
                 }
 
@@ -197,25 +202,30 @@ public class FactionService {
                 nameCheck.toCompletableFuture(),
                 tagCheck.toCompletableFuture(),
                 playerCheck.toCompletableFuture()
-        ).thenAccept(_ -> {
-            if (nameCheck.toCompletableFuture().join()) {
-                throw new IllegalArgumentException("O nome da facção já está em uso.");
-            }
-            if (tagCheck.toCompletableFuture().join()) {
-                throw new IllegalArgumentException("A tag da facção já está em uso.");
-            }
-            if (playerCheck.toCompletableFuture().join()) {
-                throw new IllegalArgumentException("O jogador já está em uma facção.");
+        ).thenCompose(_ -> {
+            try {
+                if (nameCheck.toCompletableFuture().join()) {
+                    return CompletableFuture.failedFuture(new FactionAlreadyExistsException("O nome da facção já está em uso." ));
+                }
+                if (tagCheck.toCompletableFuture().join()) {
+                    return CompletableFuture.failedFuture(new FactionAlreadyExistsException("A tag da facção já está em uso." ));
+                }
+                if (playerCheck.toCompletableFuture().join()) {
+                    return CompletableFuture.failedFuture(new PlayerAlreadyInFactionException("O jogador já está em uma facção." ));
+                }
+                return CompletableFuture.completedFuture(null);
+            } catch (Exception e) {
+                return CompletableFuture.failedFuture(e);
             }
         });
     }
 
     private void validateFactionParameters(String name, String tag) {
         if (!name.matches(FACTION_NAME_PATTERN)) {
-            throw new IllegalArgumentException("O nome da facção deve conter entre 6 e 16 caracteres alfanuméricos.");
+            throw new IllegalArgumentException("O nome da facção deve conter entre 6 e 16 caracteres alfanuméricos." );
         }
         if (!tag.matches(FACTION_TAG_PATTERN)) {
-            throw new IllegalArgumentException("A tag da facção deve conter entre 3 e 4 caracteres alfanuméricos.");
+            throw new IllegalArgumentException("A tag da facção deve conter entre 3 e 4 caracteres alfanuméricos." );
         }
     }
 

@@ -1,5 +1,8 @@
 package dev.balafini.factions.service.faction;
 
+import dev.balafini.factions.exception.FactionNotFoundException;
+import dev.balafini.factions.exception.PlayerAlreadyInFactionException;
+import dev.balafini.factions.exception.PlayerNotInvitedException;
 import dev.balafini.factions.model.faction.Faction;
 import dev.balafini.factions.model.faction.FactionInvite;
 import dev.balafini.factions.repository.faction.FactionInviteRepository;
@@ -26,24 +29,25 @@ public class FactionInviteService {
         return factionService.findFactionByPlayer(inviteeId)
                 .thenCompose(optPlayerFaction -> {
                     if (optPlayerFaction.isPresent()) {
-                        return CompletableFuture.failedFuture(new IllegalStateException("Esse jogador já está em uma facção!"));
+                        return CompletableFuture.failedFuture(new PlayerAlreadyInFactionException("O jogador já está em uma facção."));
                     }
 
                     FactionInvite invite = FactionInvite.create(factionTag, inviterId, inviteeId);
-                    return inviteRepository.save(invite).thenApply(v -> invite);
+                    return inviteRepository.save(invite).thenApply(_ -> invite);
                 });
     }
 
+    // TODO: create exception for not invited
     public CompletionStage<Faction> acceptInvite(UUID inviteeId, String factionTag) {
         return inviteRepository.findByInviteeAndTag(inviteeId, factionTag)
                 .thenCompose(optInvite -> {
                     if (optInvite.isEmpty()) {
-                        return CompletableFuture.failedFuture(new IllegalArgumentException("Você não tem um convite para essa facção!"));
+                        return CompletableFuture.failedFuture(new PlayerNotInvitedException("Você não tem um convite para essa facção!"));
                     }
 
                     return factionRepository.findByTag(factionTag).thenCompose(optFaction -> {
                         if (optFaction.isEmpty()) {
-                            return CompletableFuture.failedFuture(new IllegalStateException("A facção que você está tentando entrar não existe!"));
+                            return CompletableFuture.failedFuture(new FactionNotFoundException("A facção que você está tentando entrar não existe!"));
                         }
                         Faction faction = optFaction.get();
 
@@ -59,7 +63,7 @@ public class FactionInviteService {
                         .map(invite -> inviteRepository.deleteById(invite.id()).thenAccept(_ -> {
                         }))
                         .orElseGet(() -> CompletableFuture.failedFuture(
-                                new IllegalArgumentException("Você não tem um convite para essa facção!")))
+                                new PlayerNotInvitedException("Você não tem um convite para essa facção!")))
                 );
     }
 }

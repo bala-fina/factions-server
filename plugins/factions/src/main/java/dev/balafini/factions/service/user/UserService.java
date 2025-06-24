@@ -3,6 +3,7 @@ package dev.balafini.factions.service.user;
 import dev.balafini.factions.cache.FactionCache;
 import dev.balafini.factions.cache.UserCache;
 import dev.balafini.factions.config.ConfigManager;
+import dev.balafini.factions.exception.MaxPowerReachedException;
 import dev.balafini.factions.model.user.User;
 import dev.balafini.factions.repository.faction.FactionMemberRepository;
 import dev.balafini.factions.repository.faction.FactionRepository;
@@ -64,7 +65,7 @@ public class UserService {
             double maxPowerGained = newMaxPower - user.maxPower();
 
             if (maxPowerGained <= 0) {
-                return CompletableFuture.failedFuture(new IllegalStateException("O jogador já atingiu o poder máximo permitido."));
+                return CompletableFuture.failedFuture(new MaxPowerReachedException("O jogador já atingiu o poder máximo permitido." ));
             }
 
             User updatedUser = user.withMaxPower(newMaxPower);
@@ -81,7 +82,7 @@ public class UserService {
             User user = optUser.get();
 
             if (user.power() >= user.maxPower()) {
-                return CompletableFuture.completedFuture(null); // Já está no máximo
+                return CompletableFuture.completedFuture(null);
             }
 
             double newPower = Math.min(user.maxPower(), user.power() + config.powerGainedPerInterval());
@@ -131,29 +132,46 @@ public class UserService {
             double killerKdrDelta = calculateKdrDeltaOnKill(killer);
             double victimKdrDelta = calculateKdrDeltaOnDeath(victim);
 
-            List<CompletionStage<?>> databaseOperations = new ArrayList<>();
+            CompletionStage<Void> killerOperations = handleKillerUpdates(killerId, powerToGain, killerKdrDelta);
+            CompletionStage<Void> victimOperations = handleVictimUpdates(victimId, powerToLose, victimKdrDelta);
 
-            databaseOperations.add(userRepository.incrementKills(killerId));
-            if (powerToGain > 0) {
-                databaseOperations.add(userRepository.updatePower(killerId, powerToGain));
-            }
-            databaseOperations.add(syncFactionData(killerId, powerToGain, 0, killerKdrDelta));
-
-            databaseOperations.add(userRepository.incrementDeaths(victimId));
-            if (powerToLose > 0) {
-                databaseOperations.add(userRepository.updatePower(victimId, -powerToLose));
-            }
-            databaseOperations.add(syncFactionData(victimId, -powerToLose, 0, victimKdrDelta));
 
             userCache.invalidate(killerId);
             userCache.invalidate(victimId);
 
-            return CompletableFuture.allOf(toCompletableFutureArray(databaseOperations));
+            return CompletableFuture.allOf(
+                    killerOperations.toCompletableFuture(),
+                    victimOperations.toCompletableFuture()
+            );
         }).orElse(CompletableFuture.completedFuture(null)));
     }
 
     public CompletionStage<List<User>> getTopKdrPlayers(int limit) {
         return userRepository.getTopKdrPlayers(limit);
+    }
+
+    private CompletionStage<Void> handleKillerUpdates(UUID killerId, double powerToGain, double killerKdrDelta) {
+        List<CompletionStage<?>> killerOperations = new ArrayList<>();
+
+        killerOperations.add(userRepository.incrementKills(killerId));
+        if (powerToGain > 0) {
+            killerOperations.add(userRepository.updatePower(killerId, powerToGain));
+        }
+        killerOperations.add(syncFactionData(killerId, powerToGain, 0, killerKdrDelta));
+
+        return CompletableFuture.allOf(toCompletableFutureArray(killerOperations));
+    }
+
+    private CompletionStage<Void> handleVictimUpdates(UUID victimId, double powerToLose, double victimKdrDelta) {
+        List<CompletionStage<?>> victimOperations = new ArrayList<>();
+
+        victimOperations.add(userRepository.incrementDeaths(victimId));
+        if (powerToLose > 0) {
+            victimOperations.add(userRepository.updatePower(victimId, -powerToLose));
+        }
+        victimOperations.add(syncFactionData(victimId, -powerToLose, 0, victimKdrDelta));
+
+        return CompletableFuture.allOf(toCompletableFutureArray(victimOperations));
     }
 
     private double calculatePowerGained(User killer) {
