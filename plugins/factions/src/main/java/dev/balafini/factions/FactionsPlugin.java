@@ -21,6 +21,9 @@ import org.bukkit.Bukkit;
 import org.bukkit.command.CommandMap;
 import org.bukkit.plugin.java.JavaPlugin;
 
+import java.util.logging.Level;
+import java.util.logging.Logger;
+
 public class FactionsPlugin extends JavaPlugin {
 
     private MongoManager mongoManager;
@@ -41,6 +44,7 @@ public class FactionsPlugin extends JavaPlugin {
 
     @Override
     public void onEnable() {
+        Logger.getLogger("org.mongodb.driver").setLevel(Level.WARNING);
         this.setupConfig();
         this.setupDatabase();
         this.setupRepositories();
@@ -70,15 +74,7 @@ public class FactionsPlugin extends JavaPlugin {
     }
 
     private void setupDatabase() {
-        MongoConfig mongoConfig = new MongoConfig(
-                getConfig().getString("mongodb.host"),
-                getConfig().getInt("mongodb.port"),
-                getConfig().getString("mongodb.database"),
-                getConfig().getString("mongodb.username"),
-                getConfig().getString("mongodb.password"),
-                getConfig().getBoolean("mongodb.useAuthentication")
-        );
-
+        MongoConfig mongoConfig = MongoConfig.load(this.getConfig());
         this.mongoManager = new MongoManager(mongoConfig);
     }
 

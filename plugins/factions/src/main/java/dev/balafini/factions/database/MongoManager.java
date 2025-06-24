@@ -26,7 +26,7 @@ public class MongoManager implements AutoCloseable {
 
     public MongoManager(MongoConfig config) {
         MongoClientSettings settings = MongoClientSettings.builder()
-                .applyConnectionString(new ConnectionString("mongodb+srv://totoadmin:T33mPpyEF05powAv@factionsdevcluster.oahzqfh.mongodb.net/?retryWrites=true&w=majority&appName=factionsdevcluster"))
+                .applyConnectionString(new ConnectionString(config.connectionString()))
                 .uuidRepresentation(UuidRepresentation.STANDARD)
                 .applyToConnectionPoolSettings(builder ->
                         builder.maxSize(20)
@@ -38,7 +38,7 @@ public class MongoManager implements AutoCloseable {
                 .build();
 
         this.mongoClient = MongoClients.create(settings);
-        this.database = mongoClient.getDatabase("factionsdev");
+        this.database = mongoClient.getDatabase(config.databaseName());
         this.executorService = Executors.newVirtualThreadPerTaskExecutor();
         this.objectMapper = createConfiguredObjectMapper();
     }
