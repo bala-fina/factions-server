@@ -6,16 +6,16 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.mongodb.ConnectionString;
+import com.mongodb.Function;
 import com.mongodb.MongoClientSettings;
+import com.mongodb.client.ClientSession;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoClients;
 import com.mongodb.client.MongoDatabase;
 import org.bson.UuidRepresentation;
 import org.mongojack.internal.MongoJackModule;
 
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 
 public class MongoManager implements AutoCloseable {
 
@@ -25,16 +25,16 @@ public class MongoManager implements AutoCloseable {
     private final ObjectMapper objectMapper;
 
     public MongoManager(MongoConfig config) {
+        int corePoolSize = Runtime.getRuntime().availableProcessors();
+        int maxPoolSize = corePoolSize * 4;
         MongoClientSettings settings = MongoClientSettings.builder()
                 .applyConnectionString(new ConnectionString(config.connectionString()))
                 .uuidRepresentation(UuidRepresentation.STANDARD)
                 .applyToConnectionPoolSettings(builder ->
-                        builder.maxSize(20)
-                                .minSize(5)
-                                .maxWaitTime(10000, TimeUnit.MILLISECONDS))
-                .applyToSocketSettings(builder ->
-                        builder.connectTimeout(10000, TimeUnit.MILLISECONDS)
-                                .readTimeout(10000, TimeUnit.MILLISECONDS))
+                        builder.maxSize(maxPoolSize)
+                                .minSize(corePoolSize)
+                                .maxWaitTime(5000, TimeUnit.MILLISECONDS)
+                                .maxConnectionIdleTime(30000, TimeUnit.MILLISECONDS))
                 .build();
 
         this.mongoClient = MongoClients.create(settings);
@@ -64,6 +64,23 @@ public class MongoManager implements AutoCloseable {
         return objectMapper;
     }
 
+    public <T> CompletionStage<T> withTransaction(Function<ClientSession, CompletionStage<T>> action) {
+        return CompletableFuture.supplyAsync(mongoClient::startSession, executorService)
+                .thenCompose(session -> {
+                    session.startTransaction();
+                    return action.apply(session)
+                            .thenCompose(result -> CompletableFuture.supplyAsync(() -> {
+                                session.commitTransaction();
+                                return result;
+                            }, executorService))
+                            .whenComplete((_, err) -> {
+                                if (err != null && session.hasActiveTransaction()) {
+                                    session.abortTransaction();
+                                }
+                                session.close();
+                            });
+                });
+    }
 
     @Override
     public void close() {
