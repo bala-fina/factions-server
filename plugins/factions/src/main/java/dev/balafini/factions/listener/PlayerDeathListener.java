@@ -1,5 +1,6 @@
 package dev.balafini.factions.listener;
 
+import dev.balafini.factions.FactionsPlugin;
 import dev.balafini.factions.user.service.UserCombatService;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
@@ -10,9 +11,11 @@ import org.bukkit.event.entity.PlayerDeathEvent;
 @SuppressWarnings("UnstableApiUsage")
 public class PlayerDeathListener implements Listener {
 
+    private final FactionsPlugin plugin;
     private final UserCombatService userCombatService;
 
-    public PlayerDeathListener(UserCombatService userCombatService) {
+    public PlayerDeathListener(FactionsPlugin plugin, UserCombatService userCombatService) {
+        this.plugin = plugin;
         this.userCombatService = userCombatService;
     }
 
@@ -34,6 +37,11 @@ public class PlayerDeathListener implements Listener {
                         return null;
                     });
         }
+        Bukkit.getScheduler().runTaskLater(plugin, () -> {
+            if (victim.isOnline()) {
+                victim.spigot().respawn();
+            }
+        }, 1L);
     }
 }
 

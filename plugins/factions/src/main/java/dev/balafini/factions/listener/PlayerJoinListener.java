@@ -21,6 +21,7 @@ public class PlayerJoinListener implements Listener {
 
     @EventHandler
     public void onPlayerJoin(PlayerJoinEvent event) {
+        event.joinMessage(null);
         Player player = event.getPlayer();
 
         userLifecycleService.getOrCreateUser(player.getUniqueId(), player.getName())

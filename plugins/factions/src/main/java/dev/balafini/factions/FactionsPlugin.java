@@ -15,6 +15,7 @@ import dev.balafini.factions.listener.PlayerQuitListener;
 import dev.balafini.factions.faction.repository.FactionInviteRepository;
 import dev.balafini.factions.faction.repository.FactionMemberRepository;
 import dev.balafini.factions.faction.repository.FactionRepository;
+import dev.balafini.factions.listener.PlayerRespawnListener;
 import dev.balafini.factions.user.repository.UserRepository;
 import dev.balafini.factions.scoreboard.ScoreboardManager;
 import dev.balafini.factions.user.service.UserCombatService;
@@ -157,7 +158,8 @@ public class FactionsPlugin extends JavaPlugin {
     private void registerListeners() {
         getServer().getPluginManager().registerEvents(new PlayerJoinListener(this.userLifecycleService, this.scoreboardManager), this);
         getServer().getPluginManager().registerEvents(new PlayerQuitListener(this.userLifecycleService, this.scoreboardManager), this);
-        getServer().getPluginManager().registerEvents(new PlayerDeathListener(this.userCombatService), this);
+        getServer().getPluginManager().registerEvents(new PlayerDeathListener(this, this.userCombatService), this);
+        getServer().getPluginManager().registerEvents(new PlayerRespawnListener(this, this.scoreboardManager), this);
     }
 
     private void registerCommands() {

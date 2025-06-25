@@ -40,7 +40,7 @@ public class ScoreboardHandler {
 
         this.titleFrames = createScrollingFrames("§d§lREDE BALINHA", "§f§l", "§d§l", 10, 5);
 
-        this.task = Bukkit.getScheduler().runTaskTimerAsynchronously(plugin, this::update, 0L, 10L);
+        this.task = Bukkit.getScheduler().runTaskTimerAsynchronously(plugin, this::update, 0L, 4L);
     }
 
     private void update() {

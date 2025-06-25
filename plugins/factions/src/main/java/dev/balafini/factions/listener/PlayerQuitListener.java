@@ -21,6 +21,7 @@ public class PlayerQuitListener implements Listener {
 
     @EventHandler
     public void onPlayerQuit(PlayerQuitEvent event) {
+        event.quitMessage(null);
         Player player = event.getPlayer();
         userLifecycleService.updateUserLastSeen(player.getUniqueId())
                 .exceptionally(ex -> {
