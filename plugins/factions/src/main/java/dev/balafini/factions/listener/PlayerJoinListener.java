@@ -1,7 +1,7 @@
 package dev.balafini.factions.listener;
 
 import dev.balafini.factions.scoreboard.ScoreboardManager;
-import dev.balafini.factions.service.user.UserLifecycleService;
+import dev.balafini.factions.user.service.UserLifecycleService;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;

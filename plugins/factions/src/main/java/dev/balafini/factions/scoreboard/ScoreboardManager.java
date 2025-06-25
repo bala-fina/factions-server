@@ -1,8 +1,8 @@
 package dev.balafini.factions.scoreboard;
 
 import dev.balafini.factions.FactionsPlugin;
-import dev.balafini.factions.service.faction.FactionQueryService;
-import dev.balafini.factions.service.user.UserLifecycleService;
+import dev.balafini.factions.faction.service.FactionQueryService;
+import dev.balafini.factions.user.service.UserLifecycleService;
 import org.bukkit.entity.Player;
 
 import java.util.Map;

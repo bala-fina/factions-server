@@ -1,6 +1,6 @@
 package dev.balafini.factions.command;
 
-import dev.balafini.factions.exception.FactionException;
+import dev.balafini.factions.faction.exception.FactionException;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.command.CommandSender;

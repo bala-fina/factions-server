@@ -1,10 +1,10 @@
 package dev.balafini.factions.command;
 
 import dev.balafini.factions.FactionsPlugin;
-import dev.balafini.factions.service.faction.FactionInviteService;
-import dev.balafini.factions.service.faction.FactionLifecycleService;
-import dev.balafini.factions.service.faction.FactionMembershipService;
-import dev.balafini.factions.service.faction.FactionQueryService;
+import dev.balafini.factions.faction.service.FactionInviteService;
+import dev.balafini.factions.faction.service.FactionLifecycleService;
+import dev.balafini.factions.faction.service.FactionMembershipService;
+import dev.balafini.factions.faction.service.FactionQueryService;
 import org.bukkit.Bukkit;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;

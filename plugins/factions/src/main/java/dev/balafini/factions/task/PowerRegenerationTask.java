@@ -1,6 +1,6 @@
 package dev.balafini.factions.task;
 
-import dev.balafini.factions.service.user.UserPowerService;
+import dev.balafini.factions.user.service.UserPowerService;
 import org.bukkit.Bukkit;
 import org.bukkit.scheduler.BukkitRunnable;
 

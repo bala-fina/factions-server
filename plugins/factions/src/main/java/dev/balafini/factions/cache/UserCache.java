@@ -3,8 +3,8 @@ package dev.balafini.factions.cache;
 import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
-import dev.balafini.factions.model.user.User;
-import dev.balafini.factions.repository.user.UserRepository;
+import dev.balafini.factions.user.User;
+import dev.balafini.factions.user.repository.UserRepository;
 
 import java.time.Duration;
 import java.util.Optional;

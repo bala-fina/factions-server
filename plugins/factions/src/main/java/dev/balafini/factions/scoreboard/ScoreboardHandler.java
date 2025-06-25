@@ -1,10 +1,10 @@
 package dev.balafini.factions.scoreboard;
 
 import dev.balafini.factions.FactionsPlugin;
-import dev.balafini.factions.model.faction.Faction;
-import dev.balafini.factions.model.user.User;
-import dev.balafini.factions.service.faction.FactionQueryService;
-import dev.balafini.factions.service.user.UserLifecycleService;
+import dev.balafini.factions.faction.Faction;
+import dev.balafini.factions.user.User;
+import dev.balafini.factions.faction.service.FactionQueryService;
+import dev.balafini.factions.user.service.UserLifecycleService;
 import fr.mrmicky.fastboard.FastBoard;
 import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;

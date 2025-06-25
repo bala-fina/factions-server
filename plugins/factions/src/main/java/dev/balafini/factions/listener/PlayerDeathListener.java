@@ -1,6 +1,6 @@
 package dev.balafini.factions.listener;
 
-import dev.balafini.factions.service.user.UserCombatService;
+import dev.balafini.factions.user.service.UserCombatService;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
