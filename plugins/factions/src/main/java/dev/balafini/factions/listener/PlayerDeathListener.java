@@ -1,6 +1,6 @@
 package dev.balafini.factions.listener;
 
-import dev.balafini.factions.service.user.UserService;
+import dev.balafini.factions.service.user.UserCombatService;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -10,27 +10,25 @@ import org.bukkit.event.entity.PlayerDeathEvent;
 @SuppressWarnings("UnstableApiUsage")
 public class PlayerDeathListener implements Listener {
 
-    private final UserService userService;
+    private final UserCombatService userCombatService;
 
-    public PlayerDeathListener(UserService userService) {
-        this.userService = userService;
+    public PlayerDeathListener(UserCombatService userCombatService) {
+        this.userCombatService = userCombatService;
     }
 
     @EventHandler
     public void onPlayerDeath(PlayerDeathEvent event) {
-        Player player = event.getPlayer();
-
         Player victim = event.getEntity();
         Player killer = victim.getKiller();
 
         if (killer != null && !killer.equals(victim)) {
-            userService.handlePlayerKill(killer.getUniqueId(), victim.getUniqueId())
+            userCombatService.handlePlayerKill(killer.getUniqueId(), killer.getName(), victim.getUniqueId(), victim.getName())
                     .exceptionally(ex -> {
                         Bukkit.getLogger().warning("Falha ao processar o abate de " + killer.getName() + " em " + victim.getName() + ": " + ex.getMessage());
                         return null;
                     });
         } else {
-            userService.handlePveOrSuicideDeath(victim.getUniqueId())
+            userCombatService.handlePveOrSuicideDeath(victim.getUniqueId(), victim.getName())
                     .exceptionally(ex -> {
                         Bukkit.getLogger().warning("Falha ao processar a morte de " + victim.getName() + ": " + ex.getMessage());
                         return null;

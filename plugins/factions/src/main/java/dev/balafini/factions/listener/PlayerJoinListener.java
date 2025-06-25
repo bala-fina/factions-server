@@ -1,7 +1,7 @@
 package dev.balafini.factions.listener;
 
 import dev.balafini.factions.scoreboard.ScoreboardManager;
-import dev.balafini.factions.service.user.UserService;
+import dev.balafini.factions.service.user.UserLifecycleService;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -11,12 +11,11 @@ import org.bukkit.event.player.PlayerJoinEvent;
 @SuppressWarnings("UnstableApiUsage")
 public class PlayerJoinListener implements Listener {
 
-    private final UserService userService;
+    private final UserLifecycleService userLifecycleService;
     private final ScoreboardManager scoreboardManager;
 
-
-    public PlayerJoinListener(UserService userService, ScoreboardManager scoreboardManager) {
-        this.userService = userService;
+    public PlayerJoinListener(UserLifecycleService userLifecycleService, ScoreboardManager scoreboardManager) {
+        this.userLifecycleService = userLifecycleService;
         this.scoreboardManager = scoreboardManager;
     }
 
@@ -24,14 +23,13 @@ public class PlayerJoinListener implements Listener {
     public void onPlayerJoin(PlayerJoinEvent event) {
         Player player = event.getPlayer();
 
-        userService.createUser(player.getUniqueId())
-                .thenCompose(user -> userService.updateUserLastSeen(player.getUniqueId()))
+        userLifecycleService.getOrCreateUser(player.getUniqueId(), player.getName())
                 .exceptionally(ex -> {
-                    player.sendMessage("§cOcorreu um erro ao criar o seu clã.");
-                    Bukkit.getLogger().warning(ex.getMessage());
+                    player.sendMessage("§cOcorreu um erro ao carregar os seus dados de jogador.");
+                    Bukkit.getLogger().warning("Failed to create/update user data for " + player.getName() + ": " + ex.getMessage());
                     return null;
                 });
 
-        scoreboardManager.addPlayer(event.getPlayer());
+        scoreboardManager.addPlayer(player);
     }
 }
