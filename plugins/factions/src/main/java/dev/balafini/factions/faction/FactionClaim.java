@@ -1,17 +1,23 @@
 package dev.balafini.factions.faction;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import org.bukkit.Bukkit;
+import org.bukkit.Chunk;
+import org.bukkit.World;
 import org.mongojack.Id;
 import org.mongojack.ObjectId;
 
 import java.time.Instant;
+import java.util.UUID;
 
 public record FactionClaim(
-        @Id @ObjectId String id,
+        @Id @ObjectId UUID id,
         String worldName,
         int chunkX,
         int chunkZ,
         ClaimType claimType,
-        String factionTag,
+        UUID factionId,
+        UUID claimedBy,
         Instant claimedAt
 ) {
     public enum ClaimType {
@@ -30,15 +36,37 @@ public record FactionClaim(
         }
     }
 
-    public static FactionClaim createClaim(String worldName, int chunkX, int chunkZ, ClaimType claimType, String factionTag) {
+    public static FactionClaim createClaim(
+            Chunk chunk,
+            ClaimType claimType,
+            UUID factionId,
+            UUID claimedBy
+    ) {
         return new FactionClaim(
                 null,
-                worldName,
-                chunkX,
-                chunkZ,
+                chunk.getWorld().getName(),
+                chunk.getX(),
+                chunk.getZ(),
                 claimType,
-                factionTag,
+                factionId,
+                claimedBy,
                 Instant.now()
         );
     }
+
+    @JsonIgnore
+    public World getWorld() {
+        return Bukkit.getWorld(worldName);
+    }
+
+    @JsonIgnore
+    public Chunk getChunk() {
+        World world = getWorld();
+        if (world == null) {
+            throw new IllegalStateException("World not found: " + worldName);
+        }
+
+        return world.getChunkAt(chunkX, chunkZ);
+    }
+
 }

@@ -5,11 +5,14 @@ plugins {
 
 dependencies {
     compileOnly(libs.paper.api)
+    compileOnly(libs.lombok)
 
     implementation(libs.caffeine)
     implementation(libs.fastboard)
     implementation(libs.bundles.mongoEcosystem)
     implementation(libs.bundles.cloudEcosystem)
+
+    annotationProcessor(libs.lombok)
 }
 
 tasks {

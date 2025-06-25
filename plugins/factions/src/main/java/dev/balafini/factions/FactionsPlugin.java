@@ -1,12 +1,12 @@
 package dev.balafini.factions;
 
+import dev.balafini.factions.command.FactionCommand;
 import dev.balafini.factions.faction.cache.FactionCache;
 import dev.balafini.factions.cache.UserCache;
-import dev.balafini.factions.command.CommandExceptionHandler;
-import dev.balafini.factions.command.FactionCommand;
 import dev.balafini.factions.config.ConfigManager;
 import dev.balafini.factions.database.MongoConfig;
 import dev.balafini.factions.database.MongoManager;
+import dev.balafini.factions.faction.repository.FactionClaimRepository;
 import dev.balafini.factions.faction.service.*;
 import dev.balafini.factions.listener.PlayerDeathListener;
 import dev.balafini.factions.listener.PlayerJoinListener;
@@ -21,21 +21,16 @@ import dev.balafini.factions.user.service.UserLifecycleService;
 import dev.balafini.factions.user.service.UserPowerService;
 import dev.balafini.factions.user.service.UserStatsService;
 import dev.balafini.factions.faction.util.FactionValidator;
+import lombok.Getter;
 import org.bukkit.Bukkit;
-import org.bukkit.command.CommandSender;
+import org.bukkit.command.CommandMap;
 import org.bukkit.plugin.java.JavaPlugin;
-import org.incendo.cloud.annotations.AnnotationParser;
-import org.incendo.cloud.execution.ExecutionCoordinator;
-import org.incendo.cloud.paper.LegacyPaperCommandManager;
 
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import static org.incendo.cloud.bukkit.CloudBukkitCapabilities.ASYNCHRONOUS_COMPLETION;
-import static org.incendo.cloud.bukkit.CloudBukkitCapabilities.NATIVE_BRIGADIER;
-
+@Getter
 public class FactionsPlugin extends JavaPlugin {
-
 
     private MongoManager mongoManager;
     private ConfigManager configManager;
@@ -44,12 +39,15 @@ public class FactionsPlugin extends JavaPlugin {
     private FactionRepository factionRepository;
     private FactionMemberRepository factionMemberRepository;
     private FactionInviteRepository factionInviteRepository;
+    private FactionClaimRepository factionClaimRepository;
+
     private UserRepository userRepository;
 
     private FactionCache factionCache;
     private UserCache userCache;
 
     private FactionValidator factionValidator;
+    private FactionClaimService factionClaimService;
     private FactionLifecycleService factionLifecycleService;
     private FactionMembershipService factionMembershipService;
     private FactionQueryService factionQueryService;
@@ -60,6 +58,10 @@ public class FactionsPlugin extends JavaPlugin {
     private UserLifecycleService userLifecycleService;
     private UserPowerService userPowerService;
     private UserStatsService userStatsService;
+
+    public static FactionsPlugin getInstance() {
+        return getPlugin(FactionsPlugin.class);
+    }
 
     @Override
     public void onEnable() {
@@ -102,6 +104,7 @@ public class FactionsPlugin extends JavaPlugin {
         this.factionMemberRepository = new FactionMemberRepository(this.mongoManager);
         this.factionInviteRepository = new FactionInviteRepository(this.mongoManager);
         this.userRepository = new UserRepository(this.mongoManager);
+        this.factionClaimRepository = new FactionClaimRepository(this.mongoManager);
     }
 
     private void setupCaches() {
@@ -111,17 +114,36 @@ public class FactionsPlugin extends JavaPlugin {
 
     private void setupServices() {
         this.factionValidator = new FactionValidator(this.factionRepository, this.factionMemberRepository);
+        this.factionClaimService = new FactionClaimService(this.factionClaimRepository);
+
+        this.factionLifecycleService = new FactionLifecycleService(
+                this.factionCache,
+                this.factionRepository,
+                this.factionMemberRepository,
+                new UserLifecycleService(this.userCache, this.userRepository, this.configManager),
+                new FactionQueryService(this.factionCache, this.factionRepository, this.factionMemberRepository),
+                this.factionValidator,
+                this.mongoManager
+        );
+
+        this.factionMembershipService = new FactionMembershipService(
+                new UserLifecycleService(this.userCache, this.userRepository, this.configManager),
+                new FactionQueryService(this.factionCache, this.factionRepository, this.factionMemberRepository),
+                this.factionMemberRepository,
+                this.factionRepository,
+                this.mongoManager,
+                this.factionCache,
+                this.configManager
+        );
+
         this.factionStatsService = new FactionStatsService(this.factionRepository, this.factionMemberRepository, this.factionCache);
-        this.userStatsService = new UserStatsService(this.userRepository, this.userCache);
-
         this.factionQueryService = new FactionQueryService(this.factionCache, this.factionRepository, this.factionMemberRepository);
-        this.userLifecycleService = new UserLifecycleService(this.userCache, this.userRepository, this.configManager);
+        this.factionInviteService = new FactionInviteService(this.factionInviteRepository, this.factionQueryService, this.factionMembershipService);
 
+        this.userLifecycleService = new UserLifecycleService(this.userCache, this.userRepository, this.configManager);
+        this.userStatsService = new UserStatsService(this.userRepository, this.userCache);
         this.userCombatService = new UserCombatService(this.userLifecycleService, this.userStatsService, this.factionStatsService, this.configManager);
         this.userPowerService = new UserPowerService(this.userLifecycleService, this.userStatsService, this.factionStatsService, this.configManager);
-        this.factionMembershipService = new FactionMembershipService(this.userLifecycleService, this.factionQueryService, this.factionMemberRepository, this.factionRepository, this.mongoManager, this.factionCache, this.configManager);
-        this.factionInviteService = new FactionInviteService(this.factionInviteRepository, this.factionQueryService, this.factionMembershipService);
-        this.factionLifecycleService = new FactionLifecycleService(this.factionCache, this.factionRepository, this.factionMemberRepository, this.userLifecycleService, this.factionQueryService, this.factionValidator, this.mongoManager);
     }
 
     private void setupScoreboard() {
@@ -136,34 +158,8 @@ public class FactionsPlugin extends JavaPlugin {
     }
 
     private void registerCommands() {
-        try {
-            LegacyPaperCommandManager<CommandSender> commandManager = LegacyPaperCommandManager.createNative(
-                    this,
-                    ExecutionCoordinator.asyncCoordinator());
-
-            AnnotationParser<CommandSender> annotationParser = new AnnotationParser<>(
-                    commandManager,
-                    CommandSender.class
-                    );
-
-            if (commandManager.hasCapability(NATIVE_BRIGADIER)) {
-                commandManager.registerBrigadier();
-            } else if (commandManager.hasCapability(ASYNCHRONOUS_COMPLETION)) {
-                commandManager.registerAsynchronousCompletions();
-            }
-            
-            annotationParser.parse(new CommandExceptionHandler());
-            annotationParser.parse(new FactionCommand(this,
-                    this.factionLifecycleService,
-                    this.factionMembershipService,
-                    this.factionInviteService,
-                    this.factionQueryService));
-
-
-        } catch (Exception e) {
-            getLogger().severe("Erro ao registrar comandos: " + e.getMessage());
-        }
+        CommandMap commandMap = Bukkit.getCommandMap();
+        commandMap.register("factions", new FactionCommand(this));
     }
-
 
 }
