@@ -63,7 +63,7 @@ public class FactionMemberRepository {
 
     public CompletionStage<Void> update(FactionMember member) {
         return CompletableFuture.runAsync(() -> collection.replaceOne(
-                Filters.eq("_id", member.id()),
+                Filters.eq("playerId", member.playerId()),
                 member
         ), executor);
     }

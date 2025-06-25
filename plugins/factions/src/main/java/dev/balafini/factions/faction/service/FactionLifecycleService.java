@@ -9,8 +9,11 @@ import dev.balafini.factions.faction.Faction;
 import dev.balafini.factions.faction.FactionMember;
 import dev.balafini.factions.faction.repository.FactionMemberRepository;
 import dev.balafini.factions.faction.repository.FactionRepository;
+import dev.balafini.factions.faction.validator.FactionChunkValidator;
 import dev.balafini.factions.user.service.UserLifecycleService;
-import dev.balafini.factions.faction.util.FactionValidator;
+import dev.balafini.factions.faction.validator.FactionValidator;
+import org.bukkit.Chunk;
+import org.bukkit.entity.Player;
 
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -24,15 +27,17 @@ public class FactionLifecycleService {
     private final UserLifecycleService userLifecycleService;
     private final FactionQueryService factionQueryService;
     private final FactionValidator factionValidator;
+    private final FactionChunkValidator chunkValidator;
     private final MongoManager mongoManager;
 
-    public FactionLifecycleService(FactionCache factionCache, FactionRepository factionRepository, FactionMemberRepository factionMemberRepository, UserLifecycleService userLifecycleService, FactionQueryService factionQueryService, FactionValidator factionValidator, MongoManager mongoManager) {
+    public FactionLifecycleService(FactionCache factionCache, FactionRepository factionRepository, FactionMemberRepository factionMemberRepository, UserLifecycleService userLifecycleService, FactionQueryService factionQueryService, FactionValidator factionValidator, FactionChunkValidator chunkValidator, MongoManager mongoManager) {
         this.factionCache = factionCache;
         this.factionRepository = factionRepository;
         this.factionMemberRepository = factionMemberRepository;
         this.userLifecycleService = userLifecycleService;
         this.factionQueryService = factionQueryService;
         this.factionValidator = factionValidator;
+        this.chunkValidator = chunkValidator;
         this.mongoManager = mongoManager;
     }
 
@@ -61,7 +66,6 @@ public class FactionLifecycleService {
     }
 
     public CompletionStage<Void> disbandFaction(UUID requesterId) {
-
         return factionQueryService.findFactionByPlayer(requesterId)
                 .thenCompose(optFaction -> {
                     if (optFaction.isEmpty()) {
@@ -83,4 +87,10 @@ public class FactionLifecycleService {
                     });
                 });
     }
+
+    public CompletionStage<Void> claimChunk(Player player, Faction faction, Chunk chunk) {
+        // TODO
+        return chunkValidator.validateChunkClaim(faction, chunk);
+    }
+
 }

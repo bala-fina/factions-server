@@ -8,6 +8,7 @@ import dev.balafini.factions.database.MongoConfig;
 import dev.balafini.factions.database.MongoManager;
 import dev.balafini.factions.faction.repository.FactionClaimRepository;
 import dev.balafini.factions.faction.service.*;
+import dev.balafini.factions.faction.validator.FactionChunkValidator;
 import dev.balafini.factions.listener.PlayerDeathListener;
 import dev.balafini.factions.listener.PlayerJoinListener;
 import dev.balafini.factions.listener.PlayerQuitListener;
@@ -20,7 +21,7 @@ import dev.balafini.factions.user.service.UserCombatService;
 import dev.balafini.factions.user.service.UserLifecycleService;
 import dev.balafini.factions.user.service.UserPowerService;
 import dev.balafini.factions.user.service.UserStatsService;
-import dev.balafini.factions.faction.util.FactionValidator;
+import dev.balafini.factions.faction.validator.FactionValidator;
 import lombok.Getter;
 import org.bukkit.Bukkit;
 import org.bukkit.command.CommandMap;
@@ -47,6 +48,7 @@ public class FactionsPlugin extends JavaPlugin {
     private UserCache userCache;
 
     private FactionValidator factionValidator;
+    private FactionChunkValidator chunkValidator;
     private FactionClaimService factionClaimService;
     private FactionLifecycleService factionLifecycleService;
     private FactionMembershipService factionMembershipService;
@@ -123,6 +125,7 @@ public class FactionsPlugin extends JavaPlugin {
                 new UserLifecycleService(this.userCache, this.userRepository, this.configManager),
                 new FactionQueryService(this.factionCache, this.factionRepository, this.factionMemberRepository),
                 this.factionValidator,
+                this.chunkValidator,
                 this.mongoManager
         );
 
@@ -159,7 +162,7 @@ public class FactionsPlugin extends JavaPlugin {
 
     private void registerCommands() {
         CommandMap commandMap = Bukkit.getCommandMap();
-        commandMap.register("factions", new FactionCommand(this));
+        commandMap.register("factions", new FactionCommand());
     }
 
 }

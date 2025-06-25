@@ -1,18 +1,16 @@
 package dev.balafini.factions.faction;
 
-import org.mongojack.Id;
-import org.mongojack.ObjectId;
+import com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
 
 public record FactionMember(
-        @Id @ObjectId String id,
-        UUID playerId,
-        UUID factionId,
-        FactionRole role,
-        Instant joinedAt
+    UUID playerId,
+    UUID factionId,
+    FactionRole role,
+    Instant joinedAt
 ) {
 
     public enum FactionRole {
@@ -45,10 +43,10 @@ public record FactionMember(
     }
 
     public static FactionMember create(UUID playerId, FactionRole role, UUID factionId) {
-        return new FactionMember(null, playerId, factionId, role, Instant.now());
+        return new FactionMember(playerId, factionId, role, Instant.now());
     }
 
     public FactionMember withRole(FactionRole newRole) {
-        return new FactionMember(id, playerId, factionId, newRole, joinedAt);
+        return new FactionMember(playerId, factionId, newRole, joinedAt);
     }
 }

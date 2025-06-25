@@ -1,10 +1,5 @@
 mongodb:
-  host: "factionsdevcluster.oahzqfh.mongodb.net"
-  port: 27017
-  database: "factions"
-  username: "totoadmin"
-  password: "T33mPpyEF05powAv"
-  useAuthentication: true
+  connection-string: "mongodb+srv://totoadmin:T33mPpyEF05powAv@factionsdevcluster.oahzqfh.mongodb.net/factions"
 
 factions:
   max-size: 20

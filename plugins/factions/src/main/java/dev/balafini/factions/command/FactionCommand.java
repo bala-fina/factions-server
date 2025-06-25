@@ -1,7 +1,6 @@
 package dev.balafini.factions.command;
 
-import dev.balafini.factions.FactionsPlugin;
-import dev.balafini.factions.faction.service.*;
+import dev.balafini.factions.command.arguments.CreateCommand;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
@@ -16,23 +15,13 @@ public class FactionCommand extends Command {
 
     private final Set<FactionCommandArgument> argumentSet = new HashSet<>();
 
-    protected FactionClaimService claimService;
-    protected FactionInviteService inviteService;
-    protected FactionLifecycleService lifecycleService;
-    protected FactionMembershipService membershipService;
-    protected FactionQueryService queryService;
-    protected FactionStatsService statsService;
-
-    public FactionCommand(FactionsPlugin plugin) {
+    public FactionCommand() {
         super("factions");
         setAliases(List.of("factions", "faccoes", "f"));
 
-        this.claimService = plugin.getFactionClaimService();
-        this.inviteService = plugin.getFactionInviteService();
-        this.lifecycleService = plugin.getFactionLifecycleService();
-        this.membershipService = plugin.getFactionMembershipService();
-        this.queryService = plugin.getFactionQueryService();
-        this.statsService = plugin.getFactionStatsService();
+        argumentSet.addAll(Set.of(
+            new CreateCommand()
+        ));
     }
 
     @Override

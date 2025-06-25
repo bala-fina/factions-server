@@ -1,6 +1,7 @@
 package dev.balafini.factions.command;
 
 import dev.balafini.factions.FactionsPlugin;
+import dev.balafini.factions.faction.service.*;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
 
@@ -9,15 +10,30 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-public abstract class FactionCommandArgument extends FactionCommand {
+public abstract class FactionCommandArgument {
+
+    protected FactionClaimService claimService;
+    protected FactionInviteService inviteService;
+    protected FactionLifecycleService lifecycleService;
+    protected FactionMembershipService membershipService;
+    protected FactionQueryService queryService;
+    protected FactionStatsService statsService;
 
     private final String name;
     private final Set<String> aliasesSet;
 
     public FactionCommandArgument(String name, String... aliases) {
-        super(FactionsPlugin.getInstance());
         this.name = name;
         this.aliasesSet = new HashSet<>(List.of(aliases));
+
+        final var plugin = FactionsPlugin.getInstance();
+
+        this.claimService = plugin.getFactionClaimService();
+        this.inviteService = plugin.getFactionInviteService();
+        this.lifecycleService = plugin.getFactionLifecycleService();
+        this.membershipService = plugin.getFactionMembershipService();
+        this.queryService = plugin.getFactionQueryService();
+        this.statsService = plugin.getFactionStatsService();
     }
 
     public boolean onArgument(@NotNull Player player, String[] args) {

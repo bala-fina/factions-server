@@ -1,4 +1,4 @@
-package dev.balafini.factions.faction.util;
+package dev.balafini.factions.faction.validator;
 
 import dev.balafini.factions.faction.exception.FactionAlreadyExistsException;
 import dev.balafini.factions.faction.exception.InvalidFactionParametersException;
