@@ -14,7 +14,7 @@ dependencies {
 
 tasks {
     shadowJar {
-        archiveFileName.set("Factions.jar")
+        archiveClassifier.set("")
 
         relocate("fr.mrmicky.fastboard", "dev.balafini.libs.fastboard")
         relocate("com.fasterxml.jackson", "dev.balafini.libs.jackson")
@@ -22,11 +22,13 @@ tasks {
         relocate("org.incendo.cloud", "dev.balafini.libs.cloud")
         relocate("com.github.benmanes.caffeine", "dev.balafini.libs.caffeine")
         relocate("com.mongodb", "dev.balafini.libs.mongodb")
-
-        minimize()
     }
 
     build {
         dependsOn(shadowJar)
+    }
+
+    jar {
+        archiveClassifier.set("original")
     }
 }
