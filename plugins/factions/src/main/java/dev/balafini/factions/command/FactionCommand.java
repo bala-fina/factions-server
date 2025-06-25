@@ -1,125 +1,118 @@
 package dev.balafini.factions.command;
 
 import dev.balafini.factions.FactionsPlugin;
-import dev.balafini.factions.command.argument.CreateCommand;
-import dev.balafini.factions.command.argument.DisbandCommand;
-import dev.balafini.factions.config.ConfigManager;
-import dev.balafini.factions.model.faction.Faction;
-import dev.balafini.factions.service.faction.FactionService;
-import net.kyori.adventure.text.Component;
+import dev.balafini.factions.service.faction.FactionInviteService;
+import dev.balafini.factions.service.faction.FactionLifecycleService;
+import dev.balafini.factions.service.faction.FactionMembershipService;
+import dev.balafini.factions.service.faction.FactionQueryService;
 import org.bukkit.Bukkit;
 import org.bukkit.command.CommandSender;
-import org.bukkit.command.defaults.BukkitCommand;
 import org.bukkit.entity.Player;
-import org.jetbrains.annotations.NotNull;
+import org.incendo.cloud.annotations.Argument;
+import org.incendo.cloud.annotations.Command;
+import org.incendo.cloud.annotations.CommandDescription;
+import org.incendo.cloud.annotations.suggestion.Suggestions;
+import org.incendo.cloud.context.CommandContext;
 
-import java.time.Instant;
-import java.time.ZoneId;
-import java.time.format.DateTimeFormatter;
-import java.time.format.FormatStyle;
-import java.util.*;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionStage;
-import java.util.concurrent.ExecutorService;
+import java.util.List;
+import java.util.stream.Collectors;
 
-@SuppressWarnings("UnstableApiUsage")
-public class FactionCommand extends BukkitCommand {
-
-    private final Set<FactionCommandArgument> arguments = new HashSet<>();
+public class FactionCommand {
 
     private final FactionsPlugin plugin;
-    private final FactionService factionService;
-    private final ConfigManager config;
-    private final ExecutorService executor;
+    private final FactionLifecycleService factionLifecycleService;
+    private final FactionMembershipService factionMembershipService;
+    private final FactionInviteService factionInviteService;
+    private final FactionQueryService factionQueryService;
 
-    public FactionCommand(FactionsPlugin plugin, FactionService factionService, ConfigManager config, ExecutorService executor) {
-        super("faction");
-        setAliases(List.of("factions", "f", "fac"));
-
+    public FactionCommand(FactionsPlugin plugin, FactionLifecycleService factionLifecycleService, FactionMembershipService factionMembershipService, FactionInviteService factionInviteService, FactionQueryService factionQueryService) {
         this.plugin = plugin;
-        this.factionService = factionService;
-        this.config = config;
-        this.executor = executor;
-
-        arguments.add(new CreateCommand(factionService));
-        arguments.add(new DisbandCommand(factionService));
+        this.factionLifecycleService = factionLifecycleService;
+        this.factionMembershipService = factionMembershipService;
+        this.factionInviteService = factionInviteService;
+        this.factionQueryService = factionQueryService;
     }
 
-    @Override
-    public boolean execute(@NotNull CommandSender sender, @NotNull String commandLabel, @NotNull String @NotNull [] args) {
-        if (!(sender instanceof Player player)) {
-            sender.sendMessage("§cVocê precisa ser um jogador para executar esse comando.");
-            return false;
-        }
+    @Suggestions("players")
+    public List<String> playerSuggestions(final CommandContext<CommandSender> context, final String input) {
+        return Bukkit.getOnlinePlayers().stream()
+                .map(Player::getName)
+                .collect(Collectors.toList());
+    }
 
-        factionService.findFactionByPlayer(player.getUniqueId())
-                .thenCompose(optFaction -> {
+    @Command("faction|factions|f|fac")
+    @CommandDescription("Mostra informações sobre sua facção.")
+    public void onDefault(final Player player) {
+        factionQueryService.findFactionByPlayer(player.getUniqueId())
+                .thenAccept(optFaction -> {
                     if (optFaction.isEmpty()) {
                         player.sendMessage("§cVocê não pertence a nenhuma facção.");
-                        return CompletableFuture.completedFuture(List.of());
+                        return;
                     }
+                    player.sendMessage("§aMostrando informações da facção: " + optFaction.get().name());
+                });
+    }
 
-                    Faction playerFaction = optFaction.get();
+    @Command("faction|factions|f|fac create|criar <tag> <name>")
+    public void onCreate(
+            final Player player,
+            @Argument("tag") final String tag,
+            @Argument(value = "name", parserName = "greedy") final String name) {
 
-                    return factionService.getFactionRank(playerFaction).thenComposeAsync(rank -> {
-                        return prepareInfoMessages(playerFaction, rank);
-                    }, executor);
+        factionLifecycleService.createFaction(tag, name, player.getUniqueId(), player.getName())
+                .thenAccept(faction -> player.sendMessage("§aFacção criada com sucesso: [" + faction.tag() + "] " + faction.name()));
+    }
 
-                }).thenAcceptAsync(messages -> {
-                    messages.forEach(player::sendMessage);
+    @Command("faction|factions|f|fac disband|desfazer")
+    public void onDisband(final Player player) {
+        factionLifecycleService.disbandFaction(player.getUniqueId())
+                .thenAccept(_ -> player.sendMessage("§aSua facção foi desfeita com sucesso."));
+    }
 
-                }, runnable -> Bukkit.getScheduler().runTask(plugin, runnable))
-                .exceptionally(ex -> {
-                    player.sendMessage("§cOcorreu um erro ao buscar as informações da facção.");
-                    Bukkit.getLogger().warning(ex.getMessage());
-                    return null;
+    @Command("faction|factions|f|fac leave|sair")
+    public void onLeave(final Player player) {
+        factionMembershipService.leaveFaction(player.getUniqueId())
+                .thenAccept(_ -> player.sendMessage("§aVocê saiu da sua facção."));
+    }
+
+    @Command("faction|factions|f|fac kick|expulsar <player>")
+    public void onKick(
+            final Player player,
+            @Argument(value = "player", suggestions = "players") final Player target) {
+
+        factionMembershipService.kickMember(player.getUniqueId(), target.getUniqueId())
+                .thenAccept(_ -> player.sendMessage("§aVocê expulsou " + target.getName() + " da facção."));
+    }
+
+    @Command("faction|factions|f|fac invite|convidar <player>")
+    public void onInvite(
+            final Player player,
+            @Argument(value = "player", suggestions = "players") final Player target) {
+
+        factionInviteService.createInvite(player.getUniqueId(), target.getUniqueId())
+                .thenAccept(invite -> {
+                    player.sendMessage("§aConvite enviado para " + target.getName() + " para a facção [" + invite.factionTag() + "]");
+                    target.sendMessage("§aVocê foi convidado para a facção [" + invite.factionTag() + "] por " + player.getName() + ". Use /f accept " + invite.factionTag() + " para aceitar.");
                 });
 
-
-        FactionCommandArgument factionCommandArgument = arguments.stream()
-                .filter(argument -> argument.matchArgument(args[0]))
-                .findFirst()
-                .orElse(null);
-
-        if (factionCommandArgument == null) {
-            player.sendMessage("§cComando inválido. Use /faction help para ver os comandos disponíveis.");
-            return false;
-        }
-
-        return factionCommandArgument.onArgument(player, Arrays.copyOfRange(args, 1, args.length));
     }
 
-    private CompletionStage<List<Component>> prepareInfoMessages(Faction faction, long rank) {
-        return CompletableFuture.supplyAsync(() -> {
-            String leaderName = resolvePlayerName(faction.getLeader().playerId());
-            String kdrFormatted = String.format(Locale.US, "%.2f", faction.kdr());
+    @Command("faction|factions|f|fac accept|aceitar <tag>")
+    public void onAccept(
+            final Player player,
+            @Argument("tag") final String factionTag) {
 
-            List<Component> messages = new ArrayList<>();
-            messages.add(Component.text(""));
-            messages.add(Component.text(" §7[§b" + faction.tag() + "§7] §b" + faction.name()));
-            messages.add(Component.text(" §7Líder: §f" + leaderName));
-            messages.add(Component.text(" §7Membros: §f" + faction.members().size() + " / " + config.maxFactionSize()));
-            messages.add(Component.text(" §7Poder: §f" + (int) faction.power() + " / " + (int) faction.maxPower()));
-            messages.add(Component.text(" §7KDR Total: §f" + kdrFormatted + " §7(Rank: §b#" + rank + "§7)"));
-            messages.add(Component.text(" §7Criada em: §f" + formatDate(faction.createdAt())));
-            messages.add(Component.text(""));
-
-            return messages;
-        }, executor);
+        factionInviteService.acceptInvite(player.getUniqueId(), player.getName(), factionTag)
+                .thenAccept(faction -> player.sendMessage("§aVocê aceitou o convite para a facção: [" + faction.tag() + "] " + faction.name()));
     }
 
-    private String formatDate(Instant instant) {
-        DateTimeFormatter formatter = DateTimeFormatter.ofLocalizedDateTime(FormatStyle.MEDIUM)
-                .withLocale(Locale.of("pt", "BR"))
-                .withZone(ZoneId.of("America/Sao_Paulo"));
-        return formatter.format(instant);
+    @Command("faction|factions|f|fac deny|recusar <tag>")
+    public void onDeny(
+            final Player player,
+            @Argument("tag") final String factionTag) {
+
+        factionInviteService.denyInvite(player.getUniqueId(), factionTag)
+                .thenAccept(_ -> player.sendMessage("§aVocê recusou o convite para a facção: " + factionTag));
     }
 
-    private String resolvePlayerName(UUID uuid) {
-        try {
-            return Optional.ofNullable(Bukkit.getOfflinePlayer(uuid).getName()).orElse("[Desconhecido]");
-        } catch (Exception e) {
-            return "[Erro ao carregar]";
-        }
-    }
 }

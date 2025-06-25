@@ -1,22 +1,26 @@
 package dev.balafini.factions.task;
 
-import dev.balafini.factions.service.user.UserService;
+import dev.balafini.factions.service.user.UserPowerService;
 import org.bukkit.Bukkit;
 import org.bukkit.scheduler.BukkitRunnable;
 
+@SuppressWarnings("UnstableApiUsage")
 public class PowerRegenerationTask extends BukkitRunnable {
 
-    private final UserService userService;
+    private final UserPowerService userPowerService;
 
-    public PowerRegenerationTask(UserService userService) {
-        this.userService = userService;
+    public PowerRegenerationTask(UserPowerService userPowerService) {
+        this.userPowerService = userPowerService;
     }
 
     @Override
     public void run() {
-        Bukkit.getOnlinePlayers().forEach(player -> userService.regeneratePower(player.getUniqueId())
-                .exceptionally(ex -> {
-                    throw new RuntimeException("Falha ao regenerar poder para " + player.getName(), ex);
-                }));
+        Bukkit.getOnlinePlayers().forEach(player ->
+                userPowerService.regeneratePower(player.getUniqueId(), player.getName())
+                        .exceptionally(ex -> {
+                            Bukkit.getLogger().warning("Failed to regenerate power for " + player.getName() + ": " + ex.getMessage());
+                            return null;
+                        })
+        );
     }
 }
