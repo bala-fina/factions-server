@@ -1,87 +1,80 @@
 package dev.balafini.factions.cache;
 
+import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
-import dev.balafini.factions.model.Faction;
+import dev.balafini.factions.model.faction.Faction;
+import dev.balafini.factions.repository.faction.FactionRepository;
 
 import java.time.Duration;
 import java.util.Optional;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionStage;
+import java.util.concurrent.Executor;
 
 public class FactionCache {
+    private final AsyncLoadingCache<UUID, Faction> cacheById;
+    private final Cache<String, UUID> nameToIdCache;
+    private final Cache<String, UUID> tagToIdCache;
+    private final FactionRepository factionRepository;
 
-    private final Cache<UUID, Faction> factionCache;
-    private final ConcurrentMap<String, UUID> nameToIdMap;
-    private final ConcurrentMap<String, UUID> tagToIdMap;
-    private final ConcurrentMap<UUID, UUID> playerToFactionMap;
-
-    public FactionCache() {
-        this.factionCache = Caffeine.newBuilder()
+    public FactionCache(FactionRepository factionRepository, Executor executor) {
+        this.factionRepository = factionRepository;
+        this.cacheById = Caffeine.newBuilder()
                 .maximumSize(1000)
                 .expireAfterWrite(Duration.ofMinutes(30))
-                .build();
+                .executor(executor)
+                .buildAsync((id, exec) ->
+                        factionRepository.findFullFactionById(id)
+                                .thenApply(opt -> opt.orElse(null))
+                                .toCompletableFuture());
 
-        this.nameToIdMap = new ConcurrentHashMap<>();
-        this.tagToIdMap = new ConcurrentHashMap<>();
-        this.playerToFactionMap = new ConcurrentHashMap<>();
+        this.nameToIdCache = Caffeine.newBuilder().maximumSize(2000).expireAfterWrite(Duration.ofMinutes(30)).build();
+        this.tagToIdCache = Caffeine.newBuilder().maximumSize(2000).expireAfterWrite(Duration.ofMinutes(30)).build();
+    }
+
+    public CompletionStage<Optional<Faction>> getById(UUID id) {
+        if (id == null) return CompletableFuture.completedFuture(Optional.empty());
+        return cacheById.get(id).thenApply(Optional::ofNullable);
+    }
+
+    public CompletionStage<Optional<Faction>> getByName(String name) {
+        UUID factionId = nameToIdCache.getIfPresent(name);
+        if (factionId != null) {
+            return getById(factionId);
+        }
+        return factionRepository.findFullFactionByName(name).thenApply(optFaction -> {
+            optFaction.ifPresent(this::put);
+            return optFaction;
+        });
+    }
+
+    public CompletionStage<Optional<Faction>> getByTag(String tag) {
+        UUID factionId = tagToIdCache.getIfPresent(tag);
+        if (factionId != null) {
+            return getById(factionId);
+        }
+        return factionRepository.findFullFactionByTag(tag).thenApply(optFaction -> {
+            optFaction.ifPresent(this::put);
+            return optFaction;
+        });
     }
 
     public void put(Faction faction) {
-        factionCache.put(faction.id(), faction);
-        nameToIdMap.put(faction.name(), faction.id());
-        tagToIdMap.put(faction.tag(), faction.id());
-
-        faction.members().forEach(member ->
-                playerToFactionMap.put(member.playerId(), faction.id())
-        );
+        cacheById.put(faction.factionId(), CompletableFuture.completedFuture(faction));
+        nameToIdCache.put(faction.name(), faction.factionId());
+        tagToIdCache.put(faction.tag(), faction.factionId());
     }
 
-    public Optional<Faction> getById(UUID factionId) {
-        return Optional.ofNullable(factionCache.getIfPresent(factionId));
+    public void invalidate(Faction faction) {
+        if (faction == null) return;
+        invalidateById(faction.factionId());
+        nameToIdCache.invalidate(faction.name());
+        tagToIdCache.invalidate(faction.tag());
     }
 
-    public Optional<Faction> getByName(String name) {
-        UUID factionId = nameToIdMap.get(name.toLowerCase());
-        return factionId != null ? getById(factionId) : Optional.empty();
-    }
-
-    public Optional<Faction> getByTag(String tag) {
-        UUID factionId = tagToIdMap.get(tag.toLowerCase());
-        return factionId != null ? getById(factionId) : Optional.empty();
-    }
-
-    public Optional<Faction> getByPlayer(UUID playerId) {
-        UUID factionId = playerToFactionMap.get(playerId);
-        return factionId != null ? getById(factionId) : Optional.empty();
-    }
-
-    public void remove(UUID factionId) {
-        Faction faction = factionCache.getIfPresent(factionId);
-        if (faction != null) {
-            factionCache.invalidate(factionId);
-            nameToIdMap.remove(faction.name().toLowerCase());
-            tagToIdMap.remove(faction.tag().toLowerCase());
-
-            faction.members().forEach(member ->
-                    playerToFactionMap.remove(member.playerId())
-            );
-        }
-    }
-
-    public boolean existsByName(String name) {
-        return nameToIdMap.containsKey(name.toLowerCase());
-    }
-
-    public boolean existsByTag(String tag) {
-        return tagToIdMap.containsKey(tag.toLowerCase());
-    }
-
-    public void clear() {
-        factionCache.invalidateAll();
-        nameToIdMap.clear();
-        tagToIdMap.clear();
-        playerToFactionMap.clear();
+    public void invalidateById(UUID id) {
+        cacheById.synchronous().invalidate(id);
     }
 }

@@ -1,12 +1,29 @@
 [versions]
 paper = "1.21.5-R0.1-SNAPSHOT"
 caffeine = "3.2.0"
-postegres = "42.7.6"
-hikari = "6.3.0"
+mongodb = "5.5.1"
+mongo-jack = "5.0.2"
+cloud-paper = "2.0.0-beta.10"
+cloud-annotation = "2.0.0"
+jedis = "6.0.0"
+fastboard = "2.1.5"
 
 
 [libraries]
 paper-api = { module = "io.papermc.paper:paper-api", version.ref = "paper" }
 caffeine = { module = "com.github.ben-manes.caffeine:caffeine", version.ref = "caffeine" }
-postgres = { module = "org.postgresql:postgresql", version.ref = "postegres" }
-hikari = { module = "com.zaxxer:HikariCP", version.ref = "hikari" }
+mongodb-driver = { module = "org.mongodb:mongodb-driver-sync", version.ref = "mongodb" }
+mongo-jack = { module = "org.mongojack:mongojack", version.ref = "mongo-jack" }
+cloud-paper = { module = "org.incendo:cloud-paper", version.ref = "cloud-paper" }
+cloud-annotation = { module = "org.incendo:cloud-annotations", version.ref = "cloud-annotation" }
+jedis = { module = "redis.clients:jedis", version.ref = "jedis" }
+fastboard = { module = "fr.mrmicky:fastboard", version.ref = "fastboard" }
+
+[plugins]
+shadow = { id = "com.gradleup.shadow", version = "8.3.0" }
+
+[bundles]
+cloudEcosystem = ["cloud-paper", "cloud-annotation"]
+mongoEcosystem = ["mongodb-driver", "mongo-jack"]
+
+

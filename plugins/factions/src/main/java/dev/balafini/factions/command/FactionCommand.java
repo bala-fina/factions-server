@@ -1,139 +1,118 @@
 package dev.balafini.factions.command;
 
-import dev.balafini.factions.model.Faction;
-import dev.balafini.factions.service.FactionService;
-import io.papermc.paper.command.brigadier.BasicCommand;
-import io.papermc.paper.command.brigadier.CommandSourceStack;
-import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.format.NamedTextColor;
+import dev.balafini.factions.FactionsPlugin;
+import dev.balafini.factions.service.faction.FactionInviteService;
+import dev.balafini.factions.service.faction.FactionLifecycleService;
+import dev.balafini.factions.service.faction.FactionMembershipService;
+import dev.balafini.factions.service.faction.FactionQueryService;
+import org.bukkit.Bukkit;
+import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
-import org.jspecify.annotations.NullMarked;
+import org.incendo.cloud.annotations.Argument;
+import org.incendo.cloud.annotations.Command;
+import org.incendo.cloud.annotations.CommandDescription;
+import org.incendo.cloud.annotations.suggestion.Suggestions;
+import org.incendo.cloud.context.CommandContext;
 
-import java.util.Collection;
 import java.util.List;
-import java.util.Optional;
+import java.util.stream.Collectors;
 
-@NullMarked
-@SuppressWarnings("UnstableApiUsage")
-public class FactionCommand implements BasicCommand {
+public class FactionCommand {
 
-    private final FactionService factionService;
+    private final FactionsPlugin plugin;
+    private final FactionLifecycleService factionLifecycleService;
+    private final FactionMembershipService factionMembershipService;
+    private final FactionInviteService factionInviteService;
+    private final FactionQueryService factionQueryService;
 
-    public FactionCommand(FactionService factionService) {
-        this.factionService = factionService;
+    public FactionCommand(FactionsPlugin plugin, FactionLifecycleService factionLifecycleService, FactionMembershipService factionMembershipService, FactionInviteService factionInviteService, FactionQueryService factionQueryService) {
+        this.plugin = plugin;
+        this.factionLifecycleService = factionLifecycleService;
+        this.factionMembershipService = factionMembershipService;
+        this.factionInviteService = factionInviteService;
+        this.factionQueryService = factionQueryService;
     }
 
-
-    @Override
-    public void execute(CommandSourceStack commandSourceStack, String[] args) {
-        if (!(commandSourceStack instanceof Player player)) {
-            commandSourceStack.getSender().sendMessage(
-                    Component.text("Only players can use faction commands!", NamedTextColor.RED));
-            return;
-        }
-
-        if (args.length == 0) {
-            showHelp(player);
-            return;
-        }
-
-        String subcommand = args[0].toLowerCase();
-
-        switch (subcommand) {
-            case "create" -> handleCreateFaction(player, args);
-            case "disband" -> handleDisband(player);
-            case "info" -> handleInfo(player, args);
-            default -> showHelp(player);
-        }
+    @Suggestions("players")
+    public List<String> playerSuggestions(final CommandContext<CommandSender> context, final String input) {
+        return Bukkit.getOnlinePlayers().stream()
+                .map(Player::getName)
+                .collect(Collectors.toList());
     }
 
-    @Override
-    public Collection<String> suggest(CommandSourceStack stack, String[] args) {
-        if (args.length == 1) {
-            return List.of("create", "disband", "info");
-        }
-        return List.of();
+    @Command("faction|factions|f|fac")
+    @CommandDescription("Mostra informações sobre sua facção.")
+    public void onDefault(final Player player) {
+        factionQueryService.findFactionByPlayer(player.getUniqueId())
+                .thenAccept(optFaction -> {
+                    if (optFaction.isEmpty()) {
+                        player.sendMessage("§cVocê não pertence a nenhuma facção.");
+                        return;
+                    }
+                    player.sendMessage("§aMostrando informações da facção: " + optFaction.get().name());
+                });
     }
 
-    private void handleCreateFaction(Player player, String[] args) {
-        if (args.length < 3) {
-            player.sendMessage(Component.text("Usage: /f create <name> <tag>", NamedTextColor.RED));
-            return;
-        }
+    @Command("faction|factions|f|fac create|criar <tag> <name>")
+    public void onCreate(
+            final Player player,
+            @Argument("tag") final String tag,
+            @Argument(value = "name", parserName = "greedy") final String name) {
 
-        Optional<Faction> existingFaction = factionService.getPlayerFaction(player.getUniqueId());
-        if (existingFaction.isPresent()) {
-            player.sendMessage(Component.text("You are already in a faction!", NamedTextColor.RED));
-            return;
-        }
-
-        String name = args[1];
-        String tag = args[2];
-
-        try {
-            Faction faction = factionService.createFaction(name, tag, player.getUniqueId());
-            player.sendMessage(Component.text("Faction created: " + faction.name() + " (" + faction.tag() + ")", NamedTextColor.GREEN));
-        } catch (IllegalArgumentException e) {
-            player.sendMessage(Component.text(e.getMessage(), NamedTextColor.RED));
-        }
+        factionLifecycleService.createFaction(tag, name, player.getUniqueId(), player.getName())
+                .thenAccept(faction -> player.sendMessage("§aFacção criada com sucesso: [" + faction.tag() + "] " + faction.name()));
     }
 
-    private void handleDisband(Player player) {
-        Optional<Faction> factionOpt = factionService.getPlayerFaction(player.getUniqueId());
-        if (factionOpt.isEmpty()) {
-            player.sendMessage(Component.text("You are not in a faction!", NamedTextColor.RED));
-            return;
-        }
-
-        try {
-            Faction faction = factionOpt.get();
-            factionService.disbandFaction(faction.id(), player.getUniqueId());
-            player.sendMessage(Component.text("Faction disbanded successfully!", NamedTextColor.GREEN));
-        } catch (IllegalArgumentException e) {
-            player.sendMessage(Component.text(e.getMessage(), NamedTextColor.RED));
-        }
+    @Command("faction|factions|f|fac disband|desfazer")
+    public void onDisband(final Player player) {
+        factionLifecycleService.disbandFaction(player.getUniqueId())
+                .thenAccept(_ -> player.sendMessage("§aSua facção foi desfeita com sucesso."));
     }
 
-    private void handleInfo(Player player, String[] args) {
-        Faction faction;
-
-        if (args.length > 1) {
-            String query = args[1];
-            Optional<Faction> factionOpt = factionService.getFactionByName(query);
-
-            if (factionOpt.isEmpty()) {
-                factionOpt = factionService.getFactionByTag(query);
-            }
-
-            if (factionOpt.isEmpty()) {
-                player.sendMessage(Component.text("Faction not found!", NamedTextColor.RED));
-                return;
-            }
-            faction = factionOpt.get();
-        } else {
-            Optional<Faction> factionOpt = factionService.getPlayerFaction(player.getUniqueId());
-            if (factionOpt.isEmpty()) {
-                player.sendMessage(Component.text("You are not in a faction!", NamedTextColor.RED));
-                return;
-            }
-            faction = factionOpt.get();
-        }
-
-        player.sendMessage(Component.text("--- Faction Info ---", NamedTextColor.GREEN));
-        player.sendMessage(Component.text("Name: " + faction.name(), NamedTextColor.GREEN));
-        player.sendMessage(Component.text("Tag: [" + faction.tag() + "]", NamedTextColor.GREEN));
-        player.sendMessage(Component.text("Members (" + faction.members().size() + "):", NamedTextColor.GREEN));
-
-        faction.members().forEach(member -> {
-            String playerName = player.getServer().getOfflinePlayer(member.playerId()).getName();
-            player.sendMessage(Component.text("  " + member.role().getPrefix() + " " + playerName + " (" + member.role().getName() + ")", NamedTextColor.GREEN));
-        });
+    @Command("faction|factions|f|fac leave|sair")
+    public void onLeave(final Player player) {
+        factionMembershipService.leaveFaction(player.getUniqueId())
+                .thenAccept(_ -> player.sendMessage("§aVocê saiu da sua facção."));
     }
 
-    private void showHelp(Player player){
-        player.sendMessage(Component.text("/f create <name> <tag> - Create a new faction", NamedTextColor.WHITE));
-        player.sendMessage(Component.text("/f disband - Disband your faction", NamedTextColor.WHITE));
-        player.sendMessage(Component.text("/f info [name/tag] - Show faction information", NamedTextColor.WHITE));
+    @Command("faction|factions|f|fac kick|expulsar <player>")
+    public void onKick(
+            final Player player,
+            @Argument(value = "player", suggestions = "players") final Player target) {
+
+        factionMembershipService.kickMember(player.getUniqueId(), target.getUniqueId())
+                .thenAccept(_ -> player.sendMessage("§aVocê expulsou " + target.getName() + " da facção."));
     }
+
+    @Command("faction|factions|f|fac invite|convidar <player>")
+    public void onInvite(
+            final Player player,
+            @Argument(value = "player", suggestions = "players") final Player target) {
+
+        factionInviteService.createInvite(player.getUniqueId(), target.getUniqueId())
+                .thenAccept(invite -> {
+                    player.sendMessage("§aConvite enviado para " + target.getName() + " para a facção [" + invite.factionTag() + "]");
+                    target.sendMessage("§aVocê foi convidado para a facção [" + invite.factionTag() + "] por " + player.getName() + ". Use /f accept " + invite.factionTag() + " para aceitar.");
+                });
+
+    }
+
+    @Command("faction|factions|f|fac accept|aceitar <tag>")
+    public void onAccept(
+            final Player player,
+            @Argument("tag") final String factionTag) {
+
+        factionInviteService.acceptInvite(player.getUniqueId(), player.getName(), factionTag)
+                .thenAccept(faction -> player.sendMessage("§aVocê aceitou o convite para a facção: [" + faction.tag() + "] " + faction.name()));
+    }
+
+    @Command("faction|factions|f|fac deny|recusar <tag>")
+    public void onDeny(
+            final Player player,
+            @Argument("tag") final String factionTag) {
+
+        factionInviteService.denyInvite(player.getUniqueId(), factionTag)
+                .thenAccept(_ -> player.sendMessage("§aVocê recusou o convite para a facção: " + factionTag));
+    }
+
 }
-

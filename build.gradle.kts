@@ -1,5 +1,6 @@
 plugins {
     id("java")
+    alias(libs.plugins.shadow) apply false
 }
 
 allprojects {
@@ -9,6 +10,7 @@ allprojects {
     repositories {
         mavenCentral()
         maven("https://repo.papermc.io/repository/maven-public/")
+        maven(url = "https://oss.sonatype.org/content/repositories/snapshots")
     }
 }
 
@@ -16,6 +18,7 @@ subprojects {
     plugins.withType<JavaPlugin> {
         tasks.withType<JavaCompile>().configureEach {
             options.encoding = "UTF-8"
+            options.compilerArgs.add("--enable-preview")
         }
         java {
             toolchain.languageVersion.set(JavaLanguageVersion.of(21))
