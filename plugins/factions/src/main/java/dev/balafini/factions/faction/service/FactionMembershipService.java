@@ -15,6 +15,9 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 
+/*
+    TODO: make demoteMember and promoteMember methods return the String representation of the new role
+ */
 public class FactionMembershipService {
 
     private final UserLifecycleService userLifecycleService;
@@ -72,7 +75,7 @@ public class FactionMembershipService {
                     FactionMember requester = faction.getMember(requesterId);
 
                     if (requester.role() == FactionMember.FactionRole.LEADER) {
-                        throw new InsufficientPermissionException("O líder não pode sair da facção. Use o comando /f disband para dissolver a facção.");
+                        throw new InsufficientPermissionException("O líder não pode sair da facção. Use o comando /f desfazer para dissolver a facção.");
                     }
 
                     return userLifecycleService.getOrCreateUser(requesterId, "Unknown")

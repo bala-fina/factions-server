@@ -11,7 +11,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 
 /*
-    TODO: Refactor to use FactionQueryService and FactionLifecycleService
+    TODO: make invitePlayer and denyInvite methods return Faction
  */
 public class FactionInviteService {
 
