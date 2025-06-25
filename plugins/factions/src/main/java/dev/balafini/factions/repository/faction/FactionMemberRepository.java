@@ -1,6 +1,7 @@
 package dev.balafini.factions.repository.faction;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.mongodb.client.ClientSession;
 import com.mongodb.client.MongoDatabase;
 import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.IndexOptions;
@@ -52,8 +53,19 @@ public class FactionMemberRepository {
         );
     }
 
-    public CompletionStage<Void> save(FactionMember member) {
+    public CompletionStage<Void> insert(FactionMember member) {
         return CompletableFuture.runAsync(() -> collection.insertOne(member), executor);
+    }
+
+    public CompletionStage<Void> insert(FactionMember member, ClientSession session) {
+        return CompletableFuture.runAsync(() -> collection.insertOne(session, member), executor);
+    }
+
+    public CompletionStage<Void> update(FactionMember member) {
+        return CompletableFuture.runAsync(() -> collection.replaceOne(
+                Filters.eq("_id", member.id()),
+                member
+        ), executor);
     }
 
     public CompletionStage<Boolean> deleteByPlayerId(UUID playerId) {
@@ -61,8 +73,23 @@ public class FactionMemberRepository {
                 () -> collection.deleteOne(Filters.eq("playerId", playerId)).getDeletedCount() > 0, executor);
     }
 
+    public CompletionStage<Boolean> deleteByPlayerId(UUID playerId, ClientSession session) {
+        return CompletableFuture.supplyAsync(
+                () -> collection.deleteOne(
+                        session,
+                        Filters.eq("playerId", playerId)).getDeletedCount() > 0, executor);
+    }
+
     public CompletionStage<Long> deleteByFactionId(UUID factionId) {
         return CompletableFuture.supplyAsync(
                 () -> collection.deleteMany(Filters.eq("factionId", factionId)).getDeletedCount(), executor);
+    }
+
+    public CompletionStage<Long> deleteByFactionId(UUID factionId, ClientSession session) {
+        return CompletableFuture.supplyAsync(
+                () -> collection.deleteMany(
+                        session,
+                        Filters.eq("factionId", factionId)).getDeletedCount()
+                , executor);
     }
 }

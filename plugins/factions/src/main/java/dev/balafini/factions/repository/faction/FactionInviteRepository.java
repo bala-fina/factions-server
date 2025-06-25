@@ -40,7 +40,7 @@ public class FactionInviteRepository {
         ), new IndexOptions().unique(true));
     }
 
-    public CompletionStage<Void> save(FactionInvite invite) {
+    public CompletionStage<Void> insert(FactionInvite invite) {
         return CompletableFuture.runAsync(() -> collection.insertOne(invite), executor);
     }
 

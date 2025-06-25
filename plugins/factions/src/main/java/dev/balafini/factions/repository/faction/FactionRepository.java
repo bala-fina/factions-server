@@ -1,6 +1,7 @@
 package dev.balafini.factions.repository.faction;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.mongodb.client.ClientSession;
 import com.mongodb.client.FindIterable;
 import com.mongodb.client.MongoDatabase;
 import com.mongodb.client.model.*;
@@ -9,14 +10,14 @@ import dev.balafini.factions.model.faction.Faction;
 import org.bson.UuidRepresentation;
 import org.mongojack.JacksonMongoCollection;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ExecutorService;
 import java.util.regex.Pattern;
+
+import static com.mongodb.client.model.Aggregates.lookup;
+import static com.mongodb.client.model.Aggregates.match;
 
 public class FactionRepository {
 
@@ -46,6 +47,35 @@ public class FactionRepository {
         collection.createIndex(Indexes.descending("kdr"));
     }
 
+    // find faction with members
+    public CompletionStage<Optional<Faction>> findFullFactionById(UUID factionId) {
+        return CompletableFuture.supplyAsync(() -> Optional.ofNullable(
+                collection.aggregate(Arrays.asList(
+                        match(Filters.eq("_id", factionId)),
+                        lookup("faction_members", "_id", "factionId", "members")
+                )).first()
+        ), executor);
+    }
+
+    public CompletionStage<Optional<Faction>> findFullFactionByName(String name) {
+        return CompletableFuture.supplyAsync(() -> Optional.ofNullable(
+                collection.aggregate(Arrays.asList(
+                        match(Filters.regex("name", "^" + Pattern.quote(name) + "$", "i")),
+                        lookup("faction_members", "_id", "factionId", "members")
+                )).first()
+        ), executor);
+    }
+
+    public CompletionStage<Optional<Faction>> findFullFactionByTag(String tag) {
+        return CompletableFuture.supplyAsync(() -> Optional.ofNullable(
+                collection.aggregate(Arrays.asList(
+                        match(Filters.regex("tag", "^" + Pattern.quote(tag) + "$", "i")),
+                        lookup("faction_members", "_id", "factionId", "members")
+                )).first()
+        ), executor);
+    }
+
+    // find faction without members
     public CompletionStage<Optional<Faction>> findById(UUID factionId) {
         return CompletableFuture.supplyAsync(
                 () -> Optional.ofNullable(collection.find(Filters.eq("_id", factionId)).first()),
@@ -85,11 +115,9 @@ public class FactionRepository {
         );
     }
 
-    public CompletionStage<Void> save(Faction faction) {
+    public CompletionStage<Void> upsert(Faction faction, ClientSession session) {
         return CompletableFuture.runAsync(() -> collection.replaceOne(
-                Filters.eq("_id", faction.factionId()),
-                faction,
-                new ReplaceOptions().upsert(true)
+                session, Filters.eq("_id", faction.factionId()), faction, new ReplaceOptions().upsert(true)
         ), executor);
     }
 
@@ -100,8 +128,28 @@ public class FactionRepository {
         );
     }
 
+    public CompletionStage<Boolean> deleteByFactionId(UUID factionId, ClientSession session) {
+        return CompletableFuture.supplyAsync(
+                () -> collection.deleteOne(
+                        session,
+                        Filters.eq("_id", factionId)).getDeletedCount() > 0,
+                executor
+        );
+    }
+
     public CompletionStage<Void> updatePower(UUID factionId, double powerDelta, double maxPowerDelta) {
         return CompletableFuture.runAsync(() -> collection.updateOne(
+                Filters.eq("_id", factionId),
+                Updates.combine(
+                        Updates.inc("power", powerDelta),
+                        Updates.inc("maxPower", maxPowerDelta)
+                )
+        ), executor);
+    }
+
+    public CompletionStage<Void> updatePower(UUID factionId, double powerDelta, double maxPowerDelta, ClientSession session) {
+        return CompletableFuture.runAsync(() -> collection.updateOne(
+                session,
                 Filters.eq("_id", factionId),
                 Updates.combine(
                         Updates.inc("power", powerDelta),

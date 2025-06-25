@@ -1,58 +1,73 @@
 package dev.balafini.factions.service.faction;
 
-import dev.balafini.factions.exception.FactionNotFoundException;
-import dev.balafini.factions.exception.PlayerAlreadyInFactionException;
-import dev.balafini.factions.exception.PlayerNotInvitedException;
+import dev.balafini.factions.exception.*;
 import dev.balafini.factions.model.faction.Faction;
 import dev.balafini.factions.model.faction.FactionInvite;
+import dev.balafini.factions.model.faction.FactionMember;
 import dev.balafini.factions.repository.faction.FactionInviteRepository;
-import dev.balafini.factions.repository.faction.FactionRepository;
+import org.bukkit.entity.Player;
 
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 
+/*
+    TODO: Refactor to use FactionQueryService and FactionLifecycleService
+ */
 public class FactionInviteService {
 
     private final FactionInviteRepository inviteRepository;
-    private final FactionRepository factionRepository;
-    private final FactionService factionService;
+    private final FactionQueryService factionQueryService;
+    private final FactionMembershipService factionMembershipService;
 
 
-    public FactionInviteService(FactionInviteRepository inviteRepository, FactionRepository factionRepository, FactionService factionService) {
+    public FactionInviteService(FactionInviteRepository inviteRepository, FactionQueryService factionQueryService, FactionMembershipService factionMembershipService) {
         this.inviteRepository = inviteRepository;
-        this.factionRepository = factionRepository;
-        this.factionService = factionService;
+        this.factionQueryService = factionQueryService;
+        this.factionMembershipService = factionMembershipService;
     }
 
-    public CompletionStage<FactionInvite> createInvite(String factionTag, UUID inviterId, UUID inviteeId) {
-        return factionService.findFactionByPlayer(inviteeId)
-                .thenCompose(optPlayerFaction -> {
-                    if (optPlayerFaction.isPresent()) {
-                        return CompletableFuture.failedFuture(new PlayerAlreadyInFactionException("O jogador já está em uma facção."));
+    public CompletionStage<FactionInvite> createInvite(UUID inviterId, UUID inviteeId) {
+        return factionQueryService.findFactionByPlayer(inviterId)
+                .thenCompose(optInviterFaction -> {
+                    if (optInviterFaction.isEmpty()) {
+                        throw new PlayerNotInFactionException("Você precisa estar em uma facção para convidar jogadores.");
+                    }
+                    Faction inviterFaction = optInviterFaction.get();
+                    FactionMember inviter = inviterFaction.getMember(inviterId);
+
+                    if (inviter == null || !inviter.role().canInvite()) {
+                        throw new InsufficientPermissionException("Você não tem permissão para convidar jogadores.");
                     }
 
-                    FactionInvite invite = FactionInvite.create(factionTag, inviterId, inviteeId);
-                    return inviteRepository.save(invite).thenApply(_ -> invite);
+                    return factionQueryService.findFactionByPlayer(inviteeId)
+                            .thenCompose(optInviteeFaction -> {
+                                if (optInviteeFaction.isPresent()) {
+                                    throw new PlayerAlreadyInFactionException("Este jogador já está em uma facção.");
+                                }
+
+                                FactionInvite invite = FactionInvite.create(inviterFaction.tag(), inviterId, inviteeId);
+                                return inviteRepository.insert(invite).thenApply(_ -> invite);
+                            });
                 });
     }
 
-    // TODO: create exception for not invited
-    public CompletionStage<Faction> acceptInvite(UUID inviteeId, String factionTag) {
+    public CompletionStage<Faction> acceptInvite(UUID inviteeId, String inviteeName, String factionTag) {
         return inviteRepository.findByInviteeAndTag(inviteeId, factionTag)
                 .thenCompose(optInvite -> {
                     if (optInvite.isEmpty()) {
-                        return CompletableFuture.failedFuture(new PlayerNotInvitedException("Você não tem um convite para essa facção!"));
+                        throw new PlayerNotInvitedException("Você não tem um convite para essa facção!");
                     }
 
-                    return factionRepository.findByTag(factionTag).thenCompose(optFaction -> {
+                    return factionQueryService.findFactionByTag(factionTag).thenCompose(optFaction -> {
                         if (optFaction.isEmpty()) {
-                            return CompletableFuture.failedFuture(new FactionNotFoundException("A facção que você está tentando entrar não existe!"));
+                            throw new FactionNotFoundException("A facção que você está tentando entrar não existe.");
                         }
                         Faction faction = optFaction.get();
 
-                        return factionService.addMember(faction.factionId(), inviteeId)
-                                .thenCompose(_ -> inviteRepository.deleteByInviteeId(inviteeId).thenApply(deletedCount -> faction));
+                        return factionMembershipService.addMember(faction.factionId(), inviteeId, inviteeName)
+                                .thenCompose(_ -> inviteRepository.deleteByInviteeId(inviteeId))
+                                .thenApply(_ -> faction);
                     });
                 });
     }

@@ -4,6 +4,7 @@ import org.mongojack.Id;
 import org.mongojack.ObjectId;
 
 import java.time.Instant;
+import java.util.Optional;
 import java.util.UUID;
 
 public record FactionMember(
@@ -15,31 +16,31 @@ public record FactionMember(
 ) {
 
     public enum FactionRole {
-        LEADER(1), OFFICER(2), MEMBER(3), RECRUIT(4);
-        private final int level;
-
-        FactionRole(int level) {
-            this.level = level;
-        }
+        RECRUIT,
+        MEMBER,
+        OFFICER,
+        LEADER;
 
         public boolean isHigherThan(FactionRole other) {
-            return this.level < other.level;
+            return this.ordinal() > other.ordinal();
         }
 
-        public FactionRole getNextHigherRole() {
-            return switch (this) {
-                case RECRUIT -> MEMBER;
-                case MEMBER -> OFFICER;
-                default -> null;
-            };
+        public boolean isLowerThanOrEqualTo(FactionRole other) {
+            return this.ordinal() <= other.ordinal();
         }
 
-        public FactionRole getNextLowerRole() {
-            return switch (this) {
-                case OFFICER -> MEMBER;
-                case MEMBER -> RECRUIT;
-                default -> null;
-            };
+        public Optional<FactionRole> getNextRole() {
+            if (this == LEADER) return Optional.empty();
+            return Optional.of(values()[this.ordinal() + 1]);
+        }
+
+        public Optional<FactionRole> getPreviousRole() {
+            if (this == RECRUIT) return Optional.empty();
+            return Optional.of(values()[this.ordinal() - 1]);
+        }
+
+        public boolean canInvite() {
+            return this.ordinal() >= OFFICER.ordinal();
         }
     }
 
@@ -48,6 +49,6 @@ public record FactionMember(
     }
 
     public FactionMember withRole(FactionRole newRole) {
-        return new FactionMember(this.id, this.playerId, this.factionId, newRole, this.joinedAt);
+        return new FactionMember(id, playerId, factionId, newRole, joinedAt);
     }
 }

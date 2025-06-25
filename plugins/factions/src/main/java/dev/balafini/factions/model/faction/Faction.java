@@ -18,10 +18,6 @@ public record Faction(
 
         @JsonIgnore Set<FactionMember> members
 ) {
-
-    public static final String FACTION_NAME_PATTERN = "^[a-zA-Z0-9]{6,16}$";
-    public static final String FACTION_TAG_PATTERN = "^[a-zA-Z0-9]{3,4}$";
-
     public static Faction create(String name, String tag, UUID leaderId, double leaderPower, double leaderMaxPower, double leaderKdr) {
         UUID factionId = UUID.randomUUID();
         FactionMember leader = FactionMember.create(leaderId, FactionMember.FactionRole.LEADER, factionId);
