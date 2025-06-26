@@ -29,8 +29,8 @@ public class FactionClaimRepository {
         ObjectMapper objectMapper = mongoManager.getObjectMapper();
         this.executor = mongoManager.getExecutor();
         this.collection = JacksonMongoCollection.builder()
-                .withObjectMapper(objectMapper)
-                .build(database, "faction_claims", FactionClaim.class, UuidRepresentation.STANDARD);
+            .withObjectMapper(objectMapper)
+            .build(database, "faction_claims", FactionClaim.class, UuidRepresentation.STANDARD);
 
         createIndexes();
     }
@@ -39,27 +39,26 @@ public class FactionClaimRepository {
         collection.createIndex(Indexes.ascending("id"), new IndexOptions().unique(true));
     }
 
-    public CompletionStage<Void> insert(FactionClaim claim) {
-        return CompletableFuture.runAsync(() -> collection.insertOne(claim), executor);
+    public CompletableFuture<FactionClaim> insert(FactionClaim claim) {
+        return CompletableFuture.runAsync(() -> collection.insertOne(claim), executor)
+            .thenApply(_ -> claim);
     }
 
-    public CompletionStage<Optional<FactionClaim>> findById(UUID uuid) {
+    public CompletableFuture<Optional<FactionClaim>> findById(UUID uuid) {
         return CompletableFuture.supplyAsync(() ->
-                Optional.ofNullable(collection.find(Filters.and(
-                        Filters.eq("id", uuid)
-                )).first()), executor);
+            Optional.ofNullable(collection.find(Filters.and(Filters.eq("id", uuid))).first()), executor);
     }
 
-    public CompletionStage<Optional<FactionClaim>> findByChunk(Chunk chunk) {
+    public CompletableFuture<Optional<FactionClaim>> findByChunk(Chunk chunk) {
         return CompletableFuture.supplyAsync(() ->
-                Optional.ofNullable(collection.find(Filters.and(
-                        Filters.eq("chunkX", chunk.getX()),
-                        Filters.eq("chunkZ", chunk.getZ())
-                )).first()), executor);
+            Optional.ofNullable(collection.find(Filters.and(
+                Filters.eq("chunkX", chunk.getX()),
+                Filters.eq("chunkZ", chunk.getZ())
+            )).first()), executor);
     }
 
-    public CompletionStage<Boolean> deleteById(UUID uuid) {
+    public CompletableFuture<Boolean> deleteById(UUID uuid) {
         return CompletableFuture.supplyAsync(() ->
-                collection.deleteOne(Filters.eq("id", uuid)).getDeletedCount() > 0, executor);
+            collection.deleteOne(Filters.eq("id", uuid)).getDeletedCount() > 0, executor);
     }
 }

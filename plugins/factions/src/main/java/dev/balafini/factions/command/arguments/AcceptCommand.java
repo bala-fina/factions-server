@@ -24,7 +24,7 @@ public class AcceptCommand extends FactionCommandArgument {
         inviteService.acceptInvite(player.getUniqueId(), player.getName(), tag)
                 .thenAccept(faction -> player.sendMessage("§aVocê entrou na facção §f" + faction.tag()))
                 .exceptionally(throwable -> {
-                    player.sendMessage("§c" + throwable.getMessage());
+                    player.sendMessage("§c" + throwable.getCause().getMessage());
                     return null;
                 });
         return true;

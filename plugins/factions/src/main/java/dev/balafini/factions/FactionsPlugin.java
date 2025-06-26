@@ -6,9 +6,10 @@ import dev.balafini.factions.cache.UserCache;
 import dev.balafini.factions.config.ConfigManager;
 import dev.balafini.factions.database.MongoConfig;
 import dev.balafini.factions.database.MongoManager;
+import dev.balafini.factions.faction.cache.FactionClaimCache;
 import dev.balafini.factions.faction.repository.FactionClaimRepository;
 import dev.balafini.factions.faction.service.*;
-import dev.balafini.factions.faction.validator.FactionChunkValidator;
+import dev.balafini.factions.faction.validator.FactionClaimValidator;
 import dev.balafini.factions.listener.PlayerDeathListener;
 import dev.balafini.factions.listener.PlayerJoinListener;
 import dev.balafini.factions.listener.PlayerQuitListener;
@@ -46,10 +47,12 @@ public class FactionsPlugin extends JavaPlugin {
     private UserRepository userRepository;
 
     private FactionCache factionCache;
+    private FactionClaimCache factionClaimCache;
     private UserCache userCache;
 
     private FactionValidator factionValidator;
-    private FactionChunkValidator chunkValidator;
+    private FactionClaimValidator factionClaimValidator;
+
     private FactionClaimService factionClaimService;
     private FactionLifecycleService factionLifecycleService;
     private FactionMembershipService factionMembershipService;
@@ -117,37 +120,37 @@ public class FactionsPlugin extends JavaPlugin {
 
     private void setupServices() {
         this.factionValidator = new FactionValidator(this.factionRepository, this.factionMemberRepository);
-        this.factionClaimService = new FactionClaimService(this.factionClaimRepository);
-
-        this.factionLifecycleService = new FactionLifecycleService(
-                this.factionCache,
-                this.factionRepository,
-                this.factionMemberRepository,
-                new UserLifecycleService(this.userCache, this.userRepository, this.configManager),
-                new FactionQueryService(this.factionCache, this.factionRepository, this.factionMemberRepository),
-                this.factionValidator,
-                this.chunkValidator,
-                this.mongoManager
-        );
-
-        this.factionMembershipService = new FactionMembershipService(
-                new UserLifecycleService(this.userCache, this.userRepository, this.configManager),
-                new FactionQueryService(this.factionCache, this.factionRepository, this.factionMemberRepository),
-                this.factionMemberRepository,
-                this.factionRepository,
-                this.mongoManager,
-                this.factionCache,
-                this.configManager
-        );
-
-        this.factionStatsService = new FactionStatsService(this.factionRepository, this.factionMemberRepository, this.factionCache);
-        this.factionQueryService = new FactionQueryService(this.factionCache, this.factionRepository, this.factionMemberRepository);
-        this.factionInviteService = new FactionInviteService(this.factionInviteRepository, this.factionQueryService, this.factionMembershipService);
 
         this.userLifecycleService = new UserLifecycleService(this.userCache, this.userRepository, this.configManager);
         this.userStatsService = new UserStatsService(this.userRepository, this.userCache);
         this.userCombatService = new UserCombatService(this.userLifecycleService, this.userStatsService, this.factionStatsService, this.configManager);
         this.userPowerService = new UserPowerService(this.userLifecycleService, this.userStatsService, this.factionStatsService, this.configManager);
+
+        this.factionQueryService = new FactionQueryService(this.factionCache, this.factionRepository, this.factionMemberRepository);
+
+        this.factionLifecycleService = new FactionLifecycleService(
+            this.factionCache,
+            this.factionRepository,
+            this.factionMemberRepository,
+            this.userLifecycleService,
+            this.factionQueryService,
+            this.factionValidator,
+            this.mongoManager
+        );
+
+        this.factionMembershipService = new FactionMembershipService(
+            new UserLifecycleService(this.userCache, this.userRepository, this.configManager),
+            new FactionQueryService(this.factionCache, this.factionRepository, this.factionMemberRepository),
+            this.factionMemberRepository,
+            this.factionRepository,
+            this.mongoManager,
+            this.factionCache,
+            this.configManager
+        );
+
+        this.factionStatsService = new FactionStatsService(this.factionRepository, this.factionMemberRepository, this.factionCache);
+        this.factionInviteService = new FactionInviteService(this.factionInviteRepository, this.factionQueryService, this.factionMembershipService);
+        this.factionClaimService = new FactionClaimService(this.factionClaimValidator, this.factionClaimCache, this.factionClaimRepository, factionQueryService);
     }
 
     private void setupScoreboard() {

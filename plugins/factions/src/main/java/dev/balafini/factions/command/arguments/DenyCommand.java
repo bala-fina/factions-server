@@ -21,7 +21,7 @@ public class DenyCommand extends FactionCommandArgument {
         inviteService.denyInvite(player.getUniqueId(), tag)
                 .thenAccept(_ -> player.sendMessage("§aVocê recusou o convite."))
                 .exceptionally(throwable -> {
-                    player.sendMessage("§c" + throwable.getMessage());
+                    player.sendMessage("§c" + throwable.getCause().getMessage());
                     return null;
                 });
         return true;
