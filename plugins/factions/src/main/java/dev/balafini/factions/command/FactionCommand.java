@@ -29,7 +29,8 @@ public class FactionCommand extends Command {
             new DemoteCommand(),
             new PromoteCommand(),
             new KickCommand(),
-            new InfoCommand()
+            new InfoCommand(),
+            new ClaimCommand()
         ));
     }
 

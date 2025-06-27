@@ -1,10 +1,12 @@
 package dev.balafini.factions.command.arguments;
 
 import dev.balafini.factions.command.FactionCommandArgument;
+import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.Arrays;
+import java.util.logging.Level;
 import java.util.stream.Collectors;
 
 public class CreateCommand extends FactionCommandArgument {
@@ -20,6 +22,7 @@ public class CreateCommand extends FactionCommandArgument {
             return false;
         }
 
+
         String factionTag = args[0].toUpperCase();
         String factionName = Arrays.stream(args, 1, args.length)
             .collect(Collectors.joining(" "));
@@ -27,6 +30,7 @@ public class CreateCommand extends FactionCommandArgument {
         lifecycleService.createFaction(factionTag, factionName, player)
             .thenAccept(faction -> player.sendMessage("§aFacção criada com sucesso: [" + faction.tag() + "] " + faction.name()))
             .exceptionally(throwable -> {
+                Bukkit.getLogger().log(Level.INFO, "Erro ao criar facção", throwable);
                 player.sendMessage("§c" + throwable.getCause().getMessage());
                 return null;
             });

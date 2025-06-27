@@ -27,7 +27,7 @@ public class FactionClaimRepository {
     public FactionClaimRepository(MongoManager mongoManager) {
         MongoDatabase database = mongoManager.getDatabase();
         ObjectMapper objectMapper = mongoManager.getObjectMapper();
-        this.executor = mongoManager.getExecutor();
+        this.executor = mongoManager.getExecutorService();
         this.collection = JacksonMongoCollection.builder()
             .withObjectMapper(objectMapper)
             .build(database, "faction_claims", FactionClaim.class, UuidRepresentation.STANDARD);

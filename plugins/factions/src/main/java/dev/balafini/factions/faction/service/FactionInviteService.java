@@ -17,13 +17,13 @@ public class FactionInviteService {
 
     private final FactionInviteRepository inviteRepository;
     private final FactionQueryService factionQueryService;
-    private final FactionMembershipService factionMembershipService;
+    private final FactionMemberService factionMemberService;
 
 
-    public FactionInviteService(FactionInviteRepository inviteRepository, FactionQueryService factionQueryService, FactionMembershipService factionMembershipService) {
+    public FactionInviteService(FactionInviteRepository inviteRepository, FactionQueryService factionQueryService, FactionMemberService factionMemberService) {
         this.inviteRepository = inviteRepository;
         this.factionQueryService = factionQueryService;
-        this.factionMembershipService = factionMembershipService;
+        this.factionMemberService = factionMemberService;
     }
 
     public CompletionStage<FactionInvite> invitePlayer(UUID inviterId, UUID inviteeId) {
@@ -64,7 +64,7 @@ public class FactionInviteService {
                         }
                         Faction faction = optFaction.get();
 
-                        return factionMembershipService.addMember(faction.factionId(), inviteeId, inviteeName)
+                        return factionMemberService.addMember(faction.factionId(), inviteeId, inviteeName)
                                 .thenCompose(_ -> inviteRepository.deleteByInviteeId(inviteeId))
                                 .thenApply(_ -> faction);
                     });

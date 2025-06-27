@@ -1,7 +1,6 @@
 package dev.balafini.factions.faction.cache;
 
 import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
-import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import dev.balafini.factions.faction.Faction;
 import dev.balafini.factions.faction.repository.FactionRepository;
@@ -10,7 +9,6 @@ import java.time.Duration;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionStage;
 import java.util.concurrent.Executor;
 
 public class FactionCache {
@@ -24,7 +22,7 @@ public class FactionCache {
             .expireAfterWrite(Duration.ofMinutes(30))
             .executor(executor)
             .buildAsync((id, _) ->
-                factionRepository.findFullFactionById(id)
+                factionRepository.findFactionById(id)
                     .thenApply(opt -> opt.orElse(null))
                     .toCompletableFuture());
     }
@@ -40,10 +38,10 @@ public class FactionCache {
             .findFirst();
 
         return cachedFaction.map(factionCompletableFuture -> factionCompletableFuture.thenApply(Optional::of))
-            .orElseGet(() -> factionRepository.findFullFactionByName(name).thenApply(optFaction -> {
+            .orElseGet(() -> factionRepository.findFactionByName(name).thenApply(optFaction -> {
                 optFaction.ifPresent(this::put);
                 return optFaction;
-            }).toCompletableFuture());
+            }));
     }
 
     public CompletableFuture<Optional<Faction>> getByTag(String tag) {
@@ -52,10 +50,10 @@ public class FactionCache {
             .findFirst();
 
         return cachedFaction.map(factionCompletableFuture -> factionCompletableFuture.thenApply(Optional::of))
-            .orElseGet(() -> factionRepository.findFullFactionByTag(tag).thenApply(optFaction -> {
+            .orElseGet(() -> factionRepository.findFactionByTag(tag).thenApply(optFaction -> {
                 optFaction.ifPresent(this::put);
                 return optFaction;
-            }).toCompletableFuture());
+            }));
 
     }
 
@@ -65,10 +63,16 @@ public class FactionCache {
 
     public void invalidate(Faction faction) {
         if (faction == null) return;
-        invalidateById(faction.factionId());
+
+        factionRepository.upsert(faction, null)
+            .thenApply(_ -> {
+                invalidateById(faction.factionId());
+                return null;
+            });
     }
 
     public void invalidateById(UUID id) {
         cacheById.synchronous().invalidate(id);
     }
+
 }

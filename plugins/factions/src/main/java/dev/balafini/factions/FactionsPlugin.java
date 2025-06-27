@@ -7,6 +7,7 @@ import dev.balafini.factions.config.ConfigManager;
 import dev.balafini.factions.database.MongoConfig;
 import dev.balafini.factions.database.MongoManager;
 import dev.balafini.factions.faction.cache.FactionClaimCache;
+import dev.balafini.factions.faction.cache.FactionMemberCache;
 import dev.balafini.factions.faction.repository.FactionClaimRepository;
 import dev.balafini.factions.faction.service.*;
 import dev.balafini.factions.faction.validator.FactionClaimValidator;
@@ -48,6 +49,7 @@ public class FactionsPlugin extends JavaPlugin {
 
     private FactionCache factionCache;
     private FactionClaimCache factionClaimCache;
+    private FactionMemberCache factionMemberCache;
     private UserCache userCache;
 
     private FactionValidator factionValidator;
@@ -55,7 +57,7 @@ public class FactionsPlugin extends JavaPlugin {
 
     private FactionClaimService factionClaimService;
     private FactionLifecycleService factionLifecycleService;
-    private FactionMembershipService factionMembershipService;
+    private FactionMemberService factionMemberService;
     private FactionQueryService factionQueryService;
     private FactionStatsService factionStatsService;
     private FactionInviteService factionInviteService;
@@ -114,12 +116,15 @@ public class FactionsPlugin extends JavaPlugin {
     }
 
     private void setupCaches() {
-        this.factionCache = new FactionCache(this.factionRepository, this.mongoManager.getExecutor());
-        this.userCache = new UserCache(this.userRepository, this.mongoManager.getExecutor());
+        this.factionCache = new FactionCache(this.factionRepository, this.mongoManager.getExecutorService());
+        this.factionMemberCache = new FactionMemberCache(this.factionMemberRepository, this.mongoManager.getExecutorService());
+        this.userCache = new UserCache(this.userRepository, this.mongoManager.getExecutorService());
+        this.factionClaimCache = new FactionClaimCache(this.factionClaimRepository, this.mongoManager.getExecutorService());
     }
 
     private void setupServices() {
         this.factionValidator = new FactionValidator(this.factionRepository, this.factionMemberRepository);
+        this.factionClaimValidator = new FactionClaimValidator(this.factionClaimRepository);
 
         this.userLifecycleService = new UserLifecycleService(this.userCache, this.userRepository, this.configManager);
         this.userStatsService = new UserStatsService(this.userRepository, this.userCache);
@@ -138,19 +143,27 @@ public class FactionsPlugin extends JavaPlugin {
             this.mongoManager
         );
 
-        this.factionMembershipService = new FactionMembershipService(
+        this.factionMemberService = new FactionMemberService(
             new UserLifecycleService(this.userCache, this.userRepository, this.configManager),
             new FactionQueryService(this.factionCache, this.factionRepository, this.factionMemberRepository),
             this.factionMemberRepository,
             this.factionRepository,
-            this.mongoManager,
             this.factionCache,
+            this.factionMemberCache,
+            this.mongoManager,
             this.configManager
         );
 
         this.factionStatsService = new FactionStatsService(this.factionRepository, this.factionMemberRepository, this.factionCache);
-        this.factionInviteService = new FactionInviteService(this.factionInviteRepository, this.factionQueryService, this.factionMembershipService);
-        this.factionClaimService = new FactionClaimService(this.factionClaimValidator, this.factionClaimCache, this.factionClaimRepository, factionQueryService);
+        this.factionInviteService = new FactionInviteService(this.factionInviteRepository, this.factionQueryService, this.factionMemberService);
+
+        this.factionClaimService = new FactionClaimService(
+            this.factionClaimValidator,
+            this.factionClaimCache,
+            this.factionClaimRepository,
+            this.factionRepository,
+            this.factionQueryService
+        );
     }
 
     private void setupScoreboard() {

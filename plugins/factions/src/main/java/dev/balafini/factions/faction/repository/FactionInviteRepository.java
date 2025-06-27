@@ -25,7 +25,7 @@ public class FactionInviteRepository {
     public FactionInviteRepository(MongoManager mongoManager) {
         MongoDatabase database = mongoManager.getDatabase();
         ObjectMapper objectMapper = mongoManager.getObjectMapper();
-        this.executor = mongoManager.getExecutor();
+        this.executor = mongoManager.getExecutorService();
         this.collection = JacksonMongoCollection.builder()
                 .withObjectMapper(objectMapper)
                 .build(database, "faction_invites", FactionInvite.class, UuidRepresentation.STANDARD);

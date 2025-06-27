@@ -92,9 +92,10 @@ public class ScoreboardHandler {
         lines.add(new ScoreboardLine("§a", null, null));
 
         if (hasFaction) {
-            lines.add(new ScoreboardLine("§7 [%faction%]", null, (optFaction) -> optFaction.map(f -> f.tag() + "] " + f.name()).orElse("")));
-            lines.add(new ScoreboardLine("§f  Membros: %faction%", null, (optFaction) -> optFaction.map(f -> "§7" + f.members().size() + "/20").orElse("")));
+            lines.add(new ScoreboardLine("§7 %faction%", null, (optFaction) -> optFaction.map(f -> "[" + f.tag() + "] " + f.name()).orElse("")));
+            lines.add(new ScoreboardLine("§f  Membros: %faction%", null, (optFaction) -> optFaction.map(f -> "§7" + f.memberIds().size() + "/20").orElse("")));
             lines.add(new ScoreboardLine("§f  Poder: %faction%", null, (optFaction) -> optFaction.map(f -> "§7" + (int) f.power() + "§f/§7" + (int) f.maxPower()).orElse("")));
+            lines.add(new ScoreboardLine("§f  Terras: %faction%", null, (optFaction) -> optFaction.map(f -> "§7" + f.claimIds().size()).orElse("")));
         } else {
             lines.add(new ScoreboardLine("§c Você não tem uma facção.", null, null));
         }

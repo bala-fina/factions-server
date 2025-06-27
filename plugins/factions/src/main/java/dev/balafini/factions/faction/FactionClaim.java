@@ -1,25 +1,28 @@
 package dev.balafini.factions.faction;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 import org.bukkit.Bukkit;
 import org.bukkit.Chunk;
 import org.bukkit.World;
-import org.mongojack.Id;
-import org.mongojack.ObjectId;
 
 import java.time.Instant;
 import java.util.UUID;
 
-public record FactionClaim(
-        @Id @ObjectId UUID id,
-        String worldName,
-        int chunkX,
-        int chunkZ,
-        ClaimType claimType,
-        UUID factionId,
-        UUID claimedBy,
-        Instant claimedAt
-) {
+@NoArgsConstructor
+@AllArgsConstructor
+@Data
+public class FactionClaim {
+
+    private UUID id;
+    private String worldName;
+    private int chunkX, chunkZ;
+    private ClaimType claimType;
+    private UUID factionId, claimedBy;
+    private Instant claimedAt;
+
     public enum ClaimType {
         PLAYER("Normal"),
         SAFEZONE("Safezone"),
@@ -37,20 +40,20 @@ public record FactionClaim(
     }
 
     public static FactionClaim createClaim(
-            Chunk chunk,
-            ClaimType claimType,
-            UUID factionId,
-            UUID claimedBy
+        Chunk chunk,
+        ClaimType claimType,
+        UUID factionId,
+        UUID claimedBy
     ) {
         return new FactionClaim(
-                null,
-                chunk.getWorld().getName(),
-                chunk.getX(),
-                chunk.getZ(),
-                claimType,
-                factionId,
-                claimedBy,
-                Instant.now()
+            UUID.randomUUID(),
+            chunk.getWorld().getName(),
+            chunk.getX(),
+            chunk.getZ(),
+            claimType,
+            factionId,
+            claimedBy,
+            Instant.now()
         );
     }
 

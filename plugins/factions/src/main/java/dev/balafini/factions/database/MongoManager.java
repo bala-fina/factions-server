@@ -12,11 +12,13 @@ import com.mongodb.client.ClientSession;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoClients;
 import com.mongodb.client.MongoDatabase;
+import lombok.Getter;
 import org.bson.UuidRepresentation;
 import org.mongojack.internal.MongoJackModule;
 
 import java.util.concurrent.*;
 
+@Getter
 public class MongoManager implements AutoCloseable {
 
     private final MongoClient mongoClient;
@@ -28,14 +30,14 @@ public class MongoManager implements AutoCloseable {
         int corePoolSize = Runtime.getRuntime().availableProcessors();
         int maxPoolSize = corePoolSize * 4;
         MongoClientSettings settings = MongoClientSettings.builder()
-                .applyConnectionString(new ConnectionString(config.connectionString()))
-                .uuidRepresentation(UuidRepresentation.STANDARD)
-                .applyToConnectionPoolSettings(builder ->
-                        builder.maxSize(maxPoolSize)
-                                .minSize(corePoolSize)
-                                .maxWaitTime(5000, TimeUnit.MILLISECONDS)
-                                .maxConnectionIdleTime(30000, TimeUnit.MILLISECONDS))
-                .build();
+            .applyConnectionString(new ConnectionString(config.connectionString()))
+            .uuidRepresentation(UuidRepresentation.STANDARD)
+            .applyToConnectionPoolSettings(builder ->
+                builder.maxSize(maxPoolSize)
+                    .minSize(corePoolSize)
+                    .maxWaitTime(5000, TimeUnit.MILLISECONDS)
+                    .maxConnectionIdleTime(30000, TimeUnit.MILLISECONDS))
+            .build();
 
         this.mongoClient = MongoClients.create(settings);
         this.database = mongoClient.getDatabase(config.databaseName());
@@ -45,41 +47,30 @@ public class MongoManager implements AutoCloseable {
 
     private static ObjectMapper createConfiguredObjectMapper() {
         return new ObjectMapper()
-                .registerModule(new JavaTimeModule())
-                .registerModule(new MongoJackModule())
-                .configure(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS, false)
-                .disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
-                .setSerializationInclusion(JsonInclude.Include.NON_NULL);
+            .registerModule(new JavaTimeModule())
+            .registerModule(new MongoJackModule())
+            .configure(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS, false)
+            .disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
+            .setSerializationInclusion(JsonInclude.Include.NON_NULL);
     }
 
-    public MongoDatabase getDatabase() {
-        return database;
-    }
-
-    public ExecutorService getExecutor() {
-        return executorService;
-    }
-
-    public ObjectMapper getObjectMapper() {
-        return objectMapper;
-    }
 
     public <T> CompletionStage<T> withTransaction(Function<ClientSession, CompletionStage<T>> action) {
         return CompletableFuture.supplyAsync(mongoClient::startSession, executorService)
-                .thenCompose(session -> {
-                    session.startTransaction();
-                    return action.apply(session)
-                            .thenCompose(result -> CompletableFuture.supplyAsync(() -> {
-                                session.commitTransaction();
-                                return result;
-                            }, executorService))
-                            .whenComplete((_, err) -> {
-                                if (err != null && session.hasActiveTransaction()) {
-                                    session.abortTransaction();
-                                }
-                                session.close();
-                            });
-                });
+            .thenCompose(session -> {
+                session.startTransaction();
+                return action.apply(session)
+                    .thenCompose(result -> CompletableFuture.supplyAsync(() -> {
+                        session.commitTransaction();
+                        return result;
+                    }, executorService))
+                    .whenComplete((_, err) -> {
+                        if (err != null && session.hasActiveTransaction()) {
+                            session.abortTransaction();
+                        }
+                        session.close();
+                    });
+            });
     }
 
     @Override

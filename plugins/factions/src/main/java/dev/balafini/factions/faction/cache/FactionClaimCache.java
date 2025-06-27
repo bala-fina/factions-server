@@ -31,30 +31,39 @@ public class FactionClaimCache {
                     .toCompletableFuture());
     }
 
-    public CompletionStage<Optional<FactionClaim>> getById(UUID id) {
+    public CompletableFuture<Optional<FactionClaim>> getById(UUID id) {
         if (id == null) return CompletableFuture.completedFuture(Optional.empty());
-        return cacheById.get(id).thenApply(Optional::ofNullable);
+
+        final var cachedClaim = Optional.of(cacheById.get(id));
+        return cachedClaim.map(claimCompletableFuture -> claimCompletableFuture.thenApply(Optional::of))
+            .orElseGet(() -> claimRepository.findById(id).thenApply(optFaction -> {
+                optFaction.ifPresent(this::put);
+                return optFaction;
+            }));
     }
 
     public CompletableFuture<Optional<FactionClaim>> getByChunk(Chunk chunk) {
         final var cachedClaim = cacheById.asMap().values().stream()
-            .filter(claim -> claim.join().chunkX() == chunk.getX() && claim.join().chunkZ() == chunk.getZ())
+            .filter(claim -> claim.join().getChunkX() == chunk.getX() && claim.join().getChunkZ() == chunk.getZ())
             .findFirst();
 
         return cachedClaim.map(claimCompletableFuture -> claimCompletableFuture.thenApply(Optional::of))
             .orElseGet(() -> claimRepository.findByChunk(chunk).thenApply(optFaction -> {
                 optFaction.ifPresent(this::put);
                 return optFaction;
-            }).toCompletableFuture());
+            }));
     }
 
-    public void put(FactionClaim claim) {
-        cacheById.put(claim.id(), CompletableFuture.completedFuture(claim));
+    public FactionClaim put(FactionClaim claim) {
+        cacheById.put(claim.getId(), CompletableFuture.completedFuture(claim));
+        return claim;
     }
 
-    public void invalidate(FactionClaim claim) {
-        if (claim == null) return;
-        invalidateById(claim.id());
+    public FactionClaim invalidate(FactionClaim claim) {
+        if (claim == null) return null;
+
+        invalidateById(claim.getId());
+        return claim;
     }
 
     public void invalidateById(UUID id) {

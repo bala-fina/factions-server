@@ -15,7 +15,7 @@ public abstract class FactionCommandArgument {
     protected FactionClaimService claimService;
     protected FactionInviteService inviteService;
     protected FactionLifecycleService lifecycleService;
-    protected FactionMembershipService membershipService;
+    protected FactionMemberService membershipService;
     protected FactionQueryService queryService;
     protected FactionStatsService statsService;
 
@@ -31,7 +31,7 @@ public abstract class FactionCommandArgument {
         this.claimService = plugin.getFactionClaimService();
         this.inviteService = plugin.getFactionInviteService();
         this.lifecycleService = plugin.getFactionLifecycleService();
-        this.membershipService = plugin.getFactionMembershipService();
+        this.membershipService = plugin.getFactionMemberService();
         this.queryService = plugin.getFactionQueryService();
         this.statsService = plugin.getFactionStatsService();
     }
