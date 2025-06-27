@@ -1,4 +1,4 @@
-package dev.balafini.factions.cache;
+package dev.balafini.factions.user.cache;
 
 import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
 import com.github.benmanes.caffeine.cache.Cache;

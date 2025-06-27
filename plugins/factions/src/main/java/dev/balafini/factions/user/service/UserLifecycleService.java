@@ -1,6 +1,6 @@
 package dev.balafini.factions.user.service;
 
-import dev.balafini.factions.cache.UserCache;
+import dev.balafini.factions.user.cache.UserCache;
 import dev.balafini.factions.config.ConfigManager;
 import dev.balafini.factions.user.User;
 import dev.balafini.factions.user.repository.UserRepository;
