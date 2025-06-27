@@ -2,7 +2,6 @@ package dev.balafini.factions;
 
 import dev.balafini.factions.command.FactionCommand;
 import dev.balafini.factions.faction.cache.FactionCache;
-import dev.balafini.factions.cache.UserCache;
 import dev.balafini.factions.config.ConfigManager;
 import dev.balafini.factions.database.MongoConfig;
 import dev.balafini.factions.database.MongoManager;
@@ -20,6 +19,7 @@ import dev.balafini.factions.listener.PlayerJoinListener;
 import dev.balafini.factions.listener.PlayerQuitListener;
 import dev.balafini.factions.listener.PlayerRespawnListener;
 import dev.balafini.factions.scoreboard.ScoreboardManager;
+import dev.balafini.factions.user.cache.UserCache;
 import dev.balafini.factions.user.repository.UserRepository;
 import dev.balafini.factions.user.service.UserCombatService;
 import dev.balafini.factions.user.service.UserLifecycleService;

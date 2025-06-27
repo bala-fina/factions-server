@@ -44,7 +44,7 @@ public class FactionClaimCache {
 
     public CompletableFuture<Optional<FactionClaim>> getByChunk(Chunk chunk) {
         final var cachedClaim = cacheById.asMap().values().stream()
-            .filter(claim -> claim.join().getChunkX() == chunk.getX() && claim.join().getChunkZ() == chunk.getZ())
+            .filter(claim -> claim.join().chunkX() == chunk.getX() && claim.join().chunkZ() == chunk.getZ())
             .findFirst();
 
         return cachedClaim.map(claimCompletableFuture -> claimCompletableFuture.thenApply(Optional::of))
@@ -55,14 +55,14 @@ public class FactionClaimCache {
     }
 
     public FactionClaim put(FactionClaim claim) {
-        cacheById.put(claim.getId(), CompletableFuture.completedFuture(claim));
+        cacheById.put(claim.id(), CompletableFuture.completedFuture(claim));
         return claim;
     }
 
     public FactionClaim invalidate(FactionClaim claim) {
         if (claim == null) return null;
 
-        invalidateById(claim.getId());
+        invalidateById(claim.id());
         return claim;
     }
 

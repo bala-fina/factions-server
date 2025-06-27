@@ -1,27 +1,26 @@
 package dev.balafini.factions.faction;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import org.bson.types.ObjectId;
 import org.bukkit.Bukkit;
 import org.bukkit.Chunk;
 import org.bukkit.World;
+import org.mongojack.Id;
 
 import java.time.Instant;
 import java.util.UUID;
 
-@NoArgsConstructor
-@AllArgsConstructor
-@Data
-public class FactionClaim {
-
-    private UUID id;
-    private String worldName;
-    private int chunkX, chunkZ;
-    private ClaimType claimType;
-    private UUID factionId, claimedBy;
-    private Instant claimedAt;
+public record FactionClaim(
+    @Id String objectId,
+    UUID id,
+    String worldName,
+    int chunkX,
+    int chunkZ,
+    ClaimType claimType,
+    UUID factionId,
+    UUID claimedBy,
+    Instant claimedAt
+) {
 
     public enum ClaimType {
         PLAYER("Normal"),
@@ -37,6 +36,7 @@ public class FactionClaim {
         public String getName() {
             return name;
         }
+
     }
 
     public static FactionClaim createClaim(
@@ -46,6 +46,7 @@ public class FactionClaim {
         UUID claimedBy
     ) {
         return new FactionClaim(
+            UUID.randomUUID().toString(),
             UUID.randomUUID(),
             chunk.getWorld().getName(),
             chunk.getX(),

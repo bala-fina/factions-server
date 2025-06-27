@@ -82,9 +82,9 @@ public record Faction(
     }
 
     public void addClaim(FactionClaim claim) {
-        if (claim == null || claimIds.contains(claim.getId())) return;
+        if (claim == null || claimIds.contains(claim.id())) return;
 
-        claimIds.add(claim.getId());
+        claimIds.add(claim.id());
     }
 
 }

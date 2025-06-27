@@ -50,8 +50,8 @@ public class InfoCommand extends FactionCommandArgument {
         player.sendMessage(" ");
         player.sendMessage(" §fLíder: §7" + Bukkit.getOfflinePlayer(faction.getLeader().playerId()).getName());
         player.sendMessage(" §fPoder: §c" + (int)faction.power() + "§7/§c" + (int)faction.maxPower());
-        player.sendMessage(" §fMembros: §a" + faction.members().size() + "/" + 20);
-        player.sendMessage("§7Data de criação: §f" + FormatterUtil.formatDate(faction.createdAt()));
+        player.sendMessage(" §fMembros: §a" + faction.getMembers().size() + "/" + 20);
+        player.sendMessage(" §fData de criação: §f" + FormatterUtil.formatDate(faction.createdAt()));
         player.sendMessage("§7§m----------------------------------");
     }
 
