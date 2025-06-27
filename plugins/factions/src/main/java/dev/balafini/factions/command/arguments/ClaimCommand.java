@@ -12,6 +12,15 @@ public class ClaimCommand extends FactionCommandArgument {
 
     @Override
     public boolean onArgument(@NotNull Player player, String[] args) {
-        return false;
+        claimService.claimChunk(player, player.getLocation().getChunk())
+            .thenAccept(claim -> {
+                player.sendMessage("§aVocê dominou o chunk " + claim.getChunk().getX() + ", " + claim.getChunk().getZ() + " com sucesso.");
+            })
+            .exceptionally(throwable -> {
+                player.sendMessage("§c" + throwable.getCause().getMessage());
+                return null;
+            });
+
+        return true;
     }
 }

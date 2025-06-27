@@ -15,7 +15,7 @@ public class LeaveCommand extends FactionCommandArgument {
         // TODO: implement faction chat notify
         membershipService.leaveFaction(player.getUniqueId()).thenAccept(_ -> player.sendMessage("§aVocê saiu da facção com sucesso."))
                 .exceptionally(throwable -> {
-                    player.sendMessage("§c" + throwable.getMessage());
+                    player.sendMessage("§c" + throwable.getCause().getMessage());
                     return null;
                 }
         );

@@ -23,32 +23,24 @@ public class FactionQueryService {
         this.factionMemberRepository = factionMemberRepository;
     }
 
-    public CompletionStage<Optional<Faction>> findFactionById(UUID factionId) {
+    public CompletableFuture<Optional<Faction>> findFactionById(UUID factionId) {
         return factionCache.getById(factionId);
     }
 
-    public CompletionStage<Optional<Faction>> findFactionByName(String name) {
+    public CompletableFuture<Optional<Faction>> findFactionByName(String name) {
         return factionCache.getByName(name);
     }
 
-    public CompletionStage<Optional<Faction>> findFactionByTag(String tag) {
+    public CompletableFuture<Optional<Faction>> findFactionByTag(String tag) {
         return factionCache.getByTag(tag);
     }
 
-    public CompletionStage<Optional<Faction>> findFactionByPlayer(UUID playerId) {
+    public CompletableFuture<Optional<Faction>> findFactionByPlayer(UUID playerId) {
         return factionMemberRepository.findByPlayerId(playerId)
-                .thenCompose(optMember -> optMember
-                        .map(member -> findFactionById(member.factionId()))
-                        .orElse(CompletableFuture.completedFuture(Optional.empty()))
-                );
-    }
-
-    public CompletionStage<Long> getFactionRank(Faction faction) {
-        return factionRepository.countFactionsWithHigherKdr(faction.kdr())
-                .thenApply(count -> count + 1);
-    }
-
-    public CompletionStage<List<Faction>> getTopFactionsByKdr(int limit) {
-        return factionRepository.getTopKdrFactions(limit);
+            .thenCompose(optMember -> optMember
+                .map(member -> findFactionById(member.factionId()))
+                .orElse(CompletableFuture.completedFuture(Optional.empty()))
+            )
+            .toCompletableFuture();
     }
 }

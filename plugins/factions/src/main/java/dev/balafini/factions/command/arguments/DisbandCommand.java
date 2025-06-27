@@ -29,7 +29,7 @@ public class DisbandCommand extends FactionCommandArgument {
                     confirmState.remove(player.getUniqueId());
                 })
                 .exceptionally(throwable -> {
-                    player.sendMessage("§c" + throwable.getMessage());
+                    player.sendMessage("§c" + throwable.getLocalizedMessage());
                     confirmState.remove(player.getUniqueId());
                     return null;
                 });

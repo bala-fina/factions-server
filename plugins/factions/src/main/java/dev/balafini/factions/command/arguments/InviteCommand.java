@@ -28,7 +28,7 @@ public class InviteCommand extends FactionCommandArgument {
                 target.sendMessage("§aVocê foi convidado para a facção de " + player.getName() + ".");
             })
             .exceptionally(throwable -> {
-                player.sendMessage("§c" + throwable.getMessage());
+                player.sendMessage("§c" + throwable.getCause().getMessage());
                 return null;
             });
         return true;

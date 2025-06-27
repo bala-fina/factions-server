@@ -32,7 +32,7 @@ public class PromoteCommand extends FactionCommandArgument {
                         target.sendMessage("§aVocê foi promovido na facção de " + player.getName() + ".");
                     }
                 }).exceptionally(throwable -> {
-                    player.sendMessage("§c" + throwable.getMessage());
+                    player.sendMessage("§c" + throwable.getCause().getMessage());
                     return null;
                 });
 

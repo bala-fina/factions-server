@@ -32,7 +32,7 @@ public class KickCommand extends FactionCommandArgument {
                         target.sendMessage("§cVocê foi expulso da facção de " + player.getName() + ".");
                     }
                 }).exceptionally(throwable -> {
-                    player.sendMessage("§c" + throwable.getMessage());
+                    player.sendMessage("§c" + throwable.getCause().getMessage());
                     return null;
                 });
 

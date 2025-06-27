@@ -24,10 +24,10 @@ public class CreateCommand extends FactionCommandArgument {
         String factionName = Arrays.stream(args, 1, args.length)
             .collect(Collectors.joining(" "));
 
-        lifecycleService.createFaction(factionTag, factionName, player.getUniqueId(), player.getName())
+        lifecycleService.createFaction(factionTag, factionName, player)
             .thenAccept(faction -> player.sendMessage("§aFacção criada com sucesso: [" + faction.tag() + "] " + faction.name()))
             .exceptionally(throwable -> {
-                player.sendMessage("§c" + throwable.getMessage());
+                player.sendMessage("§c" + throwable.getCause().getMessage());
                 return null;
             });
         return true;
