@@ -2,7 +2,7 @@ package dev.balafini.factions.command.arguments;
 
 import dev.balafini.factions.command.FactionCommandArgument;
 import dev.balafini.factions.faction.Faction;
-import dev.balafini.factions.util.FactionUtils;
+import dev.balafini.factions.util.FormatterUtil;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
@@ -50,8 +50,8 @@ public class InfoCommand extends FactionCommandArgument {
         player.sendMessage(" ");
         player.sendMessage(" §fLíder: §7" + Bukkit.getOfflinePlayer(faction.getLeader().playerId()).getName());
         player.sendMessage(" §fPoder: §c" + (int)faction.power() + "§7/§c" + (int)faction.maxPower());
-        player.sendMessage(" §fMembros: §a" + faction.memberIds().size() + "/" + 20);
-        player.sendMessage("§7Data de criação: §f" + FactionUtils.formatDate(faction.createdAt()));
+        player.sendMessage(" §fMembros: §a" + faction.members().size() + "/" + 20);
+        player.sendMessage("§7Data de criação: §f" + FormatterUtil.formatDate(faction.createdAt()));
         player.sendMessage("§7§m----------------------------------");
     }
 

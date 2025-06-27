@@ -1,6 +1,6 @@
 package dev.balafini.factions.user.service;
 
-import dev.balafini.factions.cache.UserCache;
+import dev.balafini.factions.user.cache.UserCache;
 import dev.balafini.factions.user.repository.UserRepository;
 
 import java.util.ArrayList;

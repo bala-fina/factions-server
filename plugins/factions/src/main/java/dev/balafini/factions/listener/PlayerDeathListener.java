@@ -41,7 +41,7 @@ public class PlayerDeathListener implements Listener {
             if (victim.isOnline()) {
                 victim.spigot().respawn();
             }
-        }, 1L);
+        }, 2L);
     }
 }
 
