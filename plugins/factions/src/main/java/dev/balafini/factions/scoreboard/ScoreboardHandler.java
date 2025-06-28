@@ -2,9 +2,10 @@ package dev.balafini.factions.scoreboard;
 
 import dev.balafini.factions.FactionsPlugin;
 import dev.balafini.factions.faction.Faction;
-import dev.balafini.factions.user.User;
 import dev.balafini.factions.faction.service.FactionQueryService;
+import dev.balafini.factions.user.User;
 import dev.balafini.factions.user.service.UserLifecycleService;
+import dev.balafini.factions.util.FormatterUtil;
 import fr.mrmicky.fastboard.FastBoard;
 import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
@@ -12,7 +13,6 @@ import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.scheduler.BukkitTask;
 
-import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -38,7 +38,7 @@ public class ScoreboardHandler {
         this.userLifecycleService = userLifecycleService;
         this.factionQueryService = factionQueryService;
 
-        this.titleFrames = createScrollingFrames("§d§lREDE BALINHA", "§f§l", "§d§l", 10, 5);
+        this.titleFrames = createScrollingFrames("§c§lFACTIONS", "§f§l", "§c§l", 10, 5);
 
         this.task = Bukkit.getScheduler().runTaskTimerAsynchronously(plugin, this::update, 0L, 4L);
     }
@@ -82,11 +82,11 @@ public class ScoreboardHandler {
         List<ScoreboardLine> lines = new ArrayList<>();
 
         lines.add(new ScoreboardLine("§d", null, null));
-        lines.add(new ScoreboardLine("§f Classe: §5Witcher", null, null));
-        lines.add(new ScoreboardLine("§f Nível: §a★ 10", null, null));
+        lines.add(new ScoreboardLine("§f Rank: §bAlpha", null, null));
+        lines.add(new ScoreboardLine("§f Nível: §710", null, null));
 
         lines.add(new ScoreboardLine("§f Poder: %user%",
-                (optUser) -> optUser.map(user -> "§7" + (int) user.power() + "§f/" + (int) user.maxPower()).orElse("§7-/-"),
+                (optUser) -> optUser.map(user -> "§7" + (int) user.power() + "/" + (int) user.maxPower()).orElse("§7-/-"),
                 null
         ));
         lines.add(new ScoreboardLine("§a", null, null));
@@ -94,17 +94,17 @@ public class ScoreboardHandler {
         if (hasFaction) {
             lines.add(new ScoreboardLine("§7 %faction%", null, (optFaction) -> optFaction.map(f -> "[" + f.tag() + "] " + f.name()).orElse("")));
             lines.add(new ScoreboardLine("§f  Membros: %faction%", null, (optFaction) -> optFaction.map(f -> "§7" + f.memberIds().size() + "/20").orElse("")));
-            lines.add(new ScoreboardLine("§f  Poder: %faction%", null, (optFaction) -> optFaction.map(f -> "§7" + (int) f.power() + "§f/§7" + (int) f.maxPower()).orElse("")));
+            lines.add(new ScoreboardLine("§f  Poder: %faction%", null, (optFaction) -> optFaction.map(f -> "§7" + (int) f.power() + "/§7" + (int) f.maxPower()).orElse("")));
             lines.add(new ScoreboardLine("§f  Terras: %faction%", null, (optFaction) -> optFaction.map(f -> "§7" + f.claimIds().size()).orElse("")));
         } else {
             lines.add(new ScoreboardLine("§c Você não tem uma facção.", null, null));
         }
 
         lines.add(new ScoreboardLine("§b", null, null));
-        lines.add(new ScoreboardLine("§f Doces: §d🧁 " + formatNumber(100000000), null, null)); // Could also be made dynamic
-        lines.add(new ScoreboardLine("§f Balas: §6🍬 " + formatNumber(5000), null, null));
+        lines.add(new ScoreboardLine("§f Coins: §2$§f" + FormatterUtil.formatNumber(100000000), null, null));
+        lines.add(new ScoreboardLine("§f Cash: §6⛁" + FormatterUtil.formatNumber(5000), null, null));
         lines.add(new ScoreboardLine("§c", null, null));
-        lines.add(new ScoreboardLine(centerText("§dredebalinha.com.br", 30), null, null));
+        lines.add(new ScoreboardLine(centerText("§cfactions.gg", 30), null, null));
 
         return lines;
     }
@@ -168,20 +168,7 @@ public class ScoreboardHandler {
         return animatedTitle;
     }
 
-    private String formatNumber(double number) {
-        if (number < 1000) {
-            return new DecimalFormat("#,###").format(number);
-        }
 
-        final String[] suffixes = new String[]{"", "K", "M", "B", "T", "P", "E", "Z", "Y"};
-
-        int index = (int) (Math.log10(number) / 3);
-        index = Math.min(index, suffixes.length - 1);
-        double scaledNumber = number / Math.pow(1000, index);
-
-        DecimalFormat formatter = new DecimalFormat("#,##0.#");
-        return formatter.format(scaledNumber) + suffixes[index];
-    }
 
     private record ScoreboardLine(String text, Function<Optional<User>, String> userPlaceholder,
                                   Function<Optional<Faction>, String> factionPlaceholder) {
