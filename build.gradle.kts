@@ -11,6 +11,7 @@ allprojects {
         mavenCentral()
         maven("https://repo.papermc.io/repository/maven-public/")
         maven(url = "https://oss.sonatype.org/content/repositories/snapshots")
+        maven(url = "https://jitpack.io")
     }
 }
 

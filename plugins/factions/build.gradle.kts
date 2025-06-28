@@ -10,6 +10,7 @@ dependencies {
     implementation(libs.caffeine)
     implementation(libs.fastboard)
     implementation(libs.bundles.mongoEcosystem)
+    implementation(libs.inventory.framework)
 
     annotationProcessor(libs.lombok)
 }

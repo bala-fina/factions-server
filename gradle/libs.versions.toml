@@ -6,6 +6,7 @@ mongo-jack = "5.0.2"
 jedis = "6.0.0"
 fastboard = "2.1.5"
 lombok = "1.18.32"
+inventory-framework = "v2.5.4-rc.1"
 
 [libraries]
 paper-api = { module = "io.papermc.paper:paper-api", version.ref = "paper" }
@@ -15,6 +16,7 @@ mongo-jack = { module = "org.mongojack:mongojack", version.ref = "mongo-jack" }
 jedis = { module = "redis.clients:jedis", version.ref = "jedis" }
 fastboard = { module = "fr.mrmicky:fastboard", version.ref = "fastboard" }
 lombok = { module = "org.projectlombok:lombok", version.ref = "lombok" }
+inventory-framework = { module = "com.github.stooneg0mes.inventory-framework:inventory-framework", version.ref = "inventory-framework" }
 
 [plugins]
 shadow = { id = "com.gradleup.shadow", version = "8.3.0" }
