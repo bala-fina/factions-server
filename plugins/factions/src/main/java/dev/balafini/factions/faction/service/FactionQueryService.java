@@ -1,15 +1,13 @@
 package dev.balafini.factions.faction.service;
 
-import dev.balafini.factions.faction.cache.FactionCache;
 import dev.balafini.factions.faction.Faction;
+import dev.balafini.factions.faction.cache.FactionCache;
 import dev.balafini.factions.faction.repository.FactionMemberRepository;
 import dev.balafini.factions.faction.repository.FactionRepository;
 
-import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionStage;
 
 public class FactionQueryService {
 

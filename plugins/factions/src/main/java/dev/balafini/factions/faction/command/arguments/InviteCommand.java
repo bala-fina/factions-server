@@ -1,6 +1,6 @@
-package dev.balafini.factions.command.arguments;
+package dev.balafini.factions.faction.command.arguments;
 
-import dev.balafini.factions.command.FactionCommandArgument;
+import dev.balafini.factions.faction.command.FactionCommandArgument;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
@@ -14,7 +14,7 @@ public class InviteCommand extends FactionCommandArgument {
     @Override
     public boolean onArgument(@NotNull Player player, String[] args) {
         if (args.length < 1) {
-            player.sendMessage("§cUso correto: /f expulsar <jogador>");
+            player.sendMessage("§cUso correto: /f convidar <jogador>");
             return false;
         }
         Player target = Bukkit.getPlayer(args[0]);

@@ -6,6 +6,7 @@ import dev.balafini.factions.faction.FactionInvite;
 import dev.balafini.factions.faction.FactionMember;
 import dev.balafini.factions.faction.repository.FactionInviteRepository;
 
+import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
@@ -79,6 +80,10 @@ public class FactionInviteService {
                         .orElseGet(() -> CompletableFuture.failedFuture(
                                 new PlayerNotInvitedException("Você não tem um convite para essa facção!")))
                 );
+    }
+
+    public CompletionStage<List<FactionInvite>> findInvitesByInviteeId(UUID inviteeId) {
+        return inviteRepository.findAllByInviteeId(inviteeId);
     }
 }
 

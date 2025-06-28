@@ -1,11 +1,10 @@
-package dev.balafini.factions.command.arguments;
+package dev.balafini.factions.faction.command.arguments;
 
-import dev.balafini.factions.command.FactionCommandArgument;
+import dev.balafini.factions.faction.command.FactionCommandArgument;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.*;
-import java.util.stream.Collectors;
 
 public class DisbandCommand extends FactionCommandArgument {
 

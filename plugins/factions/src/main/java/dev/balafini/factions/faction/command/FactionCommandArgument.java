@@ -1,7 +1,9 @@
-package dev.balafini.factions.command;
+package dev.balafini.factions.faction.command;
 
 import dev.balafini.factions.FactionsPlugin;
 import dev.balafini.factions.faction.service.*;
+import dev.balafini.factions.user.service.UserLifecycleService;
+import me.saiintbrisson.minecraft.ViewFrame;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
 
@@ -19,6 +21,9 @@ public abstract class FactionCommandArgument {
     protected FactionQueryService queryService;
     protected FactionStatsService statsService;
 
+    protected ViewFrame viewFrame;
+    protected UserLifecycleService userLifecycleService;
+
     private final String name;
     private final Set<String> aliasesSet;
 
@@ -34,6 +39,9 @@ public abstract class FactionCommandArgument {
         this.membershipService = plugin.getFactionMemberService();
         this.queryService = plugin.getFactionQueryService();
         this.statsService = plugin.getFactionStatsService();
+
+        this.viewFrame = plugin.getViewFrame();
+        this.userLifecycleService = plugin.getUserLifecycleService();
     }
 
     public boolean onArgument(@NotNull Player player, String[] args) {

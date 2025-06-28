@@ -11,6 +11,8 @@ import org.bson.UuidRepresentation;
 import org.mongojack.JacksonMongoCollection;
 import org.mongojack.ObjectId;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -50,6 +52,11 @@ public class FactionInviteRepository {
                         Filters.eq("inviteeId", inviteeId),
                         Filters.eq("factionTag", factionTag)
                 )).first()), executor);
+    }
+
+    public CompletionStage<List<FactionInvite>> findAllByInviteeId(UUID inviteeId) {
+        return CompletableFuture.supplyAsync(() ->
+                collection.find(Filters.eq("inviteeId", inviteeId)).into(new ArrayList<>()), executor);
     }
 
     public CompletionStage<Long> deleteByInviteeId(UUID inviteeId) {

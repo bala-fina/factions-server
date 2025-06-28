@@ -50,24 +50,24 @@ public class FactionRepository {
     // find faction with memberIds
     public CompletableFuture<Optional<Faction>> findFactionById(UUID factionId) {
         return CompletableFuture.supplyAsync(() -> Optional.ofNullable(
-            collection.aggregate(Arrays.asList(
-                match(Filters.eq("factionId", factionId))
+            collection.aggregate(List.of(
+                    match(Filters.eq("factionId", factionId))
             )).first()
         ), executor);
     }
 
     public CompletableFuture<Optional<Faction>> findFactionByName(String name) {
         return CompletableFuture.supplyAsync(() -> Optional.ofNullable(
-            collection.aggregate(Arrays.asList(
-                match(Filters.regex("name", "^" + Pattern.quote(name) + "$", "i"))
+            collection.aggregate(List.of(
+                    match(Filters.regex("name", "^" + Pattern.quote(name) + "$", "i"))
             )).first()
         ), executor);
     }
 
     public CompletableFuture<Optional<Faction>> findFactionByTag(String tag) {
         return CompletableFuture.supplyAsync(() -> Optional.ofNullable(
-            collection.aggregate(Arrays.asList(
-                match(Filters.regex("tag", "^" + Pattern.quote(tag) + "$", "i"))
+            collection.aggregate(List.of(
+                    match(Filters.regex("tag", "^" + Pattern.quote(tag) + "$", "i"))
             )).first()
         ), executor);
     }
