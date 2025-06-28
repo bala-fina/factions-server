@@ -9,6 +9,7 @@ import java.util.concurrent.TimeUnit;
 
 public class FormatterUtil {
     private static final DecimalFormat KDR_FORMATTER = new DecimalFormat("0.00");
+    private static final String[] NUMBER_SUFFIXES = new String[]{"", "K", "M", "B", "T", "P", "E", "Z", "Y"};
 
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("dd/MM/yyyy 'às' HH:mm")
             .withZone(ZoneId.of("America/Sao_Paulo"));
@@ -47,5 +48,18 @@ public class FormatterUtil {
         if (seconds > 0 || sb.isEmpty()) sb.append(seconds).append("s");
 
         return sb.toString().trim();
+    }
+
+    public static String formatNumber(double number) {
+        if (number < 1000) {
+            return new DecimalFormat("#,###").format(number);
+        }
+
+        int index = (int) (Math.log10(number) / 3);
+        index = Math.min(index, NUMBER_SUFFIXES.length - 1);
+        double scaledNumber = number / Math.pow(1000, index);
+
+        DecimalFormat formatter = new DecimalFormat("#,##0.#");
+        return formatter.format(scaledNumber) + NUMBER_SUFFIXES[index];
     }
 }
